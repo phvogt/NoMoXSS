@@ -109,6 +109,10 @@
 #include "nsImageLoadingContent.h"
 #include "nsIDOMWindowInternal.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 // XXX align=left, hspace, vspace, border? other nav4 attrs
 
 static NS_DEFINE_CID(kXULControllersCID,  NS_XULCONTROLLERS_CID);
@@ -579,7 +583,11 @@ nsHTMLInputElement::GetForm(nsIDOMHTMLFormElement** aForm)
   return nsGenericHTMLFormElement::GetForm(aForm);
 }
 
+#ifndef XSS /* original */
 NS_IMPL_STRING_ATTR(nsHTMLInputElement, DefaultValue, value)
+#else /* XSS */
+NS_IMPL_STRING_ATTR_XSS(nsHTMLInputElement, DefaultValue, value)
+#endif /* XSS */
 NS_IMPL_BOOL_ATTR(nsHTMLInputElement, DefaultChecked, checked)
 NS_IMPL_STRING_ATTR(nsHTMLInputElement, Accept, accept)
 NS_IMPL_STRING_ATTR(nsHTMLInputElement, AccessKey, accesskey)
@@ -588,7 +596,11 @@ NS_IMPL_STRING_ATTR(nsHTMLInputElement, Alt, alt)
 //NS_IMPL_BOOL_ATTR(nsHTMLInputElement, Checked, checked)
 NS_IMPL_BOOL_ATTR(nsHTMLInputElement, Disabled, disabled)
 NS_IMPL_INT_ATTR(nsHTMLInputElement, MaxLength, maxlength)
+#ifndef XSS /* original */
 NS_IMPL_STRING_ATTR(nsHTMLInputElement, Name, name)
+#else /* XSS */
+NS_IMPL_STRING_ATTR_XSS(nsHTMLInputElement, Name, name)
+#endif /* XSS */
 NS_IMPL_BOOL_ATTR(nsHTMLInputElement, ReadOnly, readonly)
 NS_IMPL_STRING_ATTR(nsHTMLInputElement, Src, src)
 NS_IMPL_INT_ATTR(nsHTMLInputElement, TabIndex, tabindex)
@@ -653,17 +665,72 @@ nsHTMLInputElement::GetValue(nsAString& aValue)
         CopyUTF8toUTF16(mValue, aValue);
       }
     }
+#ifdef XSS /* XSS */
+	nsGenericElement *thisNode = NS_STATIC_CAST(nsGenericElement *, this);
+	if (thisNode) {
+		{
+			nsCString xss_doc_uri;
+			nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+			if (baseURI) {
+				baseURI->GetSpec(xss_doc_uri);
+			}	  
+			XSS_LOG("xsstaintstring nsHTMLInputElement::GetValue: %s\n",
+				ToNewCString(
+				NS_LITERAL_STRING("'") +
+				aValue + 
+				NS_LITERAL_STRING("' ") + 
+				NS_ConvertUTF8toUTF16(xss_doc_uri)));
+		} while (0);
+		((nsAString &)aValue).xssSetTainted(thisNode->xssGetTainted());
+	}
+	// taint the value
+	aValue.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
     return NS_OK;
   }
 
   // Treat value == defaultValue for other input elements
   nsresult rv = GetAttr(kNameSpaceID_None, nsHTMLAtoms::value, aValue);
-
+#ifdef XSS /* XSS */
+  // taint the value
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+	  if (baseURI) {
+		  baseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsHTMLInputElement::GetValue: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aValue + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aValue.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
   if (rv == NS_CONTENT_ATTR_NOT_THERE &&
       (mType == NS_FORM_INPUT_RADIO || mType == NS_FORM_INPUT_CHECKBOX)) {
     // The default value of a radio or checkbox input is "on".
     aValue.Assign(NS_LITERAL_STRING("on"));
+
+#ifdef XSS /* XSS */
+	// taint the value
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLInputElement::GetValue: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aValue + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+	aValue.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
     return NS_OK;
   }
@@ -690,6 +757,25 @@ nsHTMLInputElement::SetValue(const nsAString& aValue)
       return NS_ERROR_DOM_SECURITY_ERR;
     }
   }
+#ifdef XSS /* XSS */
+  nsGenericElement *thisNode = NS_STATIC_CAST(nsGenericElement *, this);
+  if (thisNode) {
+	  {
+		  nsCString xss_doc_uri;
+		  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		  if (baseURI) {
+			  baseURI->GetSpec(xss_doc_uri);
+		  }	  
+		  XSS_LOG("xsstaintstring nsHTMLInputElement::SetValue: %s\n",
+			  ToNewCString(
+			  NS_LITERAL_STRING("'") +
+			  aValue + 
+			  NS_LITERAL_STRING("' ") + 
+			  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	  } while (0);
+	  thisNode->xssSetTainted(((nsAString &)aValue).xssGetTainted());
+  }
+#endif /* XSS */
   SetValueInternal(aValue, nsnull);
   return NS_OK;
 }

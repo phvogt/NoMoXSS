@@ -67,6 +67,7 @@ CPPSRCS		= \
 		nsURIChecker.cpp \
 		nsURLHelper.cpp \
 		nsURLParsers.cpp \
+		nsXSSHostConnectPermissionManager.cpp \
 		$(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),os2)

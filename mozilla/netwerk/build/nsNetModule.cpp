@@ -107,6 +107,11 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSyncStreamListener, Init)
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsSafeFileOutputStream)
 
+#ifdef XSS /* XSS */
+#include "nsXSSHostConnectPermissionManager.h"
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsXSSHostConnectPermissionManager, Init)
+#endif /* XSS */
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "nsStreamConverterService.h"
@@ -1051,6 +1056,13 @@ static const nsModuleComponentInfo gNetModuleInfo[] = {
       nsCookieServiceConstructor
     },
 #endif
+#ifdef XSS /* XSS */
+    { NS_XSSHOSTCONNECTPERMISSIONMANAGER_CLASSNAME,
+      NS_XSSHOSTCONNECTPERMISSIONMANAGER_CID,
+      NS_XSSHOSTCONNECTPERMISSIONMANAGER_CONTRACTID,
+      nsXSSHostConnectPermissionManager::Create
+    },
+#endif /* XSS */
 
 };
 

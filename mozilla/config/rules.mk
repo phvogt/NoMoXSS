@@ -46,6 +46,8 @@
 #	LIBRARY_NAME	-- the target library name to create from $OBJS
 #
 ################################################################################
+DEFINES		+= -DXSS=1
+
 ifndef topsrcdir
 topsrcdir		= $(DEPTH)
 endif

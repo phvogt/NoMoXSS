@@ -2274,6 +2274,11 @@ main(int argc, char **argv, char **envp)
     JNIEnv *java_env;
 #endif
 
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	setbuf(stderr, NULL);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
     gStackBase = (jsuword)&stackDummy;
 
 #ifdef XP_OS2

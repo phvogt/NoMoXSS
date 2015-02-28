@@ -136,6 +136,11 @@
 #include "nsAutoPtr.h"
 #include "nsCOMArray.h"
 
+#ifdef XSS /* XSS */
+#include "nsPrintfCString.h"
+#include "prlog.h"
+#endif /* XSS */
+
 static NS_DEFINE_CID(kPresStateCID,  NS_PRESSTATE_CID);
 // XXX todo: add in missing out-of-memory checks
 
@@ -1592,6 +1597,28 @@ nsGenericHTMLElement::SetAttr(PRInt32 aNamespaceID, nsIAtom* aAttribute,
     }
   }
 
+#ifdef XSS /* XSS */
+  // first added for anchor.href
+  if (aValue.xssGetTainted()) {
+	  {
+		  nsCString xss_doc_uri;
+          nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		  if (baseURI) {
+			  baseURI->GetSpec(xss_doc_uri);
+		  }	  
+		  XSS_LOG("xsstaintstring nsGenericHTMLElement::SetAttr: %s\n",
+			  ToNewCString(
+			  NS_LITERAL_STRING("'") +
+			  NS_ConvertUTF8toUTF16(nsPrintfCString("%d", aNamespaceID)) + 
+			  NS_LITERAL_STRING("' '") + 
+			  aValue + 
+			  NS_LITERAL_STRING("' ") + 
+			  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	  } while (0);
+	  xssSetTainted(aValue.xssGetTainted());
+  }
+#endif /* XSS */
+
   // Parse into a nsAttrValue
   nsAttrValue attrValue;
   if (aNamespaceID == kNameSpaceID_None) {
@@ -1791,6 +1818,28 @@ nsGenericHTMLElement::GetAttr(PRInt32 aNameSpaceID, nsIAtom *aAttribute,
   }
 
   attrValue->ToString(aResult);
+
+#ifdef XSS /* XSS */
+  // first added for anchor.href
+  if (xss_istainted != XSS_NOT_TAINTED) {
+	  {
+		  nsCString xss_doc_uri;
+          nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		  if (baseURI) {
+			  baseURI->GetSpec(xss_doc_uri);
+		  }	  
+		  XSS_LOG("xsstaintstring nsGenericHTMLElement::GetAttr: %s\n",
+			  ToNewCString(
+			  NS_LITERAL_STRING("'") +
+			  NS_ConvertUTF8toUTF16(nsPrintfCString("%d", aNameSpaceID)) + 
+			  NS_LITERAL_STRING("' '") + 
+			  aResult + 
+			  NS_LITERAL_STRING("' ") + 
+			  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	  } while (0);
+	  aResult.xssSetTainted(XSS_TAINTED);
+  }
+#endif /* XSS */
 
   return NS_CONTENT_ATTR_HAS_VALUE;
 }

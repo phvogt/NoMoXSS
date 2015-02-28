@@ -166,6 +166,29 @@ nsPrompt::ConfirmEx(const PRUnichar *dialogTitle,
                                    checkMsg, checkValue, buttonPressed);
 }
 
+#ifdef XSS /* XSS */
+
+NS_IMETHODIMP
+nsPrompt::ConfirmExXSS(const PRUnichar *dialogTitle,
+                       const PRUnichar *text,
+                       PRUint32 buttonFlags,
+                       PRUint32 buttonFlags2,
+                       const PRUnichar *button0Title,
+                       const PRUnichar *button1Title,
+                       const PRUnichar *button2Title,
+                       const PRUnichar *button3Title,
+                       const PRUnichar *checkMsg,
+                       PRBool *checkValue,
+                       PRInt32 *buttonPressed)
+{
+  return mPromptService->ConfirmExXSS(mParent, dialogTitle, text,
+                                   buttonFlags, buttonFlags2, button0Title, button1Title, button2Title,
+                                   button3Title, checkMsg, checkValue, buttonPressed);
+}
+
+#endif /* XSS */
+
+
 NS_IMETHODIMP
 nsPrompt::Prompt(const PRUnichar *dialogTitle,
                  const PRUnichar *text,

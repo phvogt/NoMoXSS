@@ -47,6 +47,7 @@ REQUIRES	= xpcom \
 		  accessibility \
 		  unicharutil \
 		  commandhandler \
+		  js \
 		  $(NULL)
 
 CPPSRCS		= \

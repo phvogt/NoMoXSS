@@ -67,6 +67,7 @@ BROWSER_CO_TAG = FIREFOX_0_10_1_RELEASE
 MAIL_CO_TAG = FIREFOX_0_10_1_RELEASE
 STANDALONE_COMPOSER_CO_TAG = FIREFOX_0_10_1_RELEASE
 LOCALES_CO_TAG = FIREFOX_0_10_1_RELEASE
+MOZ_OBJDIR = d:/mozilla-src/mozilla/firefox_obj_dir
 BUILD_MODULES = all
 
 #######################################################################

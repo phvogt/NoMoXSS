@@ -301,6 +301,10 @@ nsTSubstring_CharT::Assign( const self_type& str )
     if (&str == this)
       return;
 
+#ifdef XSS /* XSS */
+	xss_istainted = str.xss_istainted;
+#endif /* XSS */
+
     if (str.mFlags & F_SHARED)
       {
         // nice! we can avoid a string copy :-)
@@ -355,6 +359,9 @@ nsTSubstring_CharT::Assign( const abstract_string_type& readable )
       Assign(*readable.AsSubstring());
     else
       Assign(readable.ToSubstring());
+#ifdef XSS /* XSS */
+	xssSetTainted(readable.xssGetTainted());
+#endif /* XSS */
   }
 
 

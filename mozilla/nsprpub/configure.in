@@ -72,6 +72,9 @@ CYGWIN_WRAPPER=
 dnl Link in libraries necessary to resolve all symbols for shared libs
 RESOLVE_LINK_SYMBOLS=
 
+
+DEFINES="$DEFINES -DXSS=1"
+
 dnl ========================================================
 dnl =
 dnl = Dont change the following lines.  Doing so breaks:

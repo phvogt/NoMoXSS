@@ -66,6 +66,10 @@
 #include "nsIPresShell.h"
 #include "nsIDocument.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 nsresult NS_NewContentIterator(nsIContentIterator** aInstancePtrResult);
 
 class nsHTMLAnchorElement : public nsGenericHTMLElement,
@@ -209,7 +213,11 @@ nsHTMLAnchorElement::CloneNode(PRBool aDeep, nsIDOMNode** aReturn)
 
 NS_IMPL_STRING_ATTR(nsHTMLAnchorElement, Charset, charset)
 NS_IMPL_STRING_ATTR(nsHTMLAnchorElement, Coords, coords)
+#ifndef XSS /* original */
 NS_IMPL_URI_ATTR(nsHTMLAnchorElement, Href, href)
+#else /* XSS */
+NS_IMPL_URI_ATTR_XSS_HREFPARAM(nsHTMLAnchorElement, Href, href)
+#endif /* XSS */
 NS_IMPL_STRING_ATTR(nsHTMLAnchorElement, Hreflang, hreflang)
 NS_IMPL_STRING_ATTR(nsHTMLAnchorElement, Name, name)
 NS_IMPL_STRING_ATTR(nsHTMLAnchorElement, Rel, rel)
@@ -353,9 +361,34 @@ nsHTMLAnchorElement::GetProtocol(nsAString& aProtocol)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   // XXX this should really use GetHrefURI and not do so much string stuff
   return GetProtocolFromHrefString(href, aProtocol,
                                    nsGenericHTMLElement::GetOwnerDocument());
+
+#else /* XSS */
+  
+  // XXX this should really use GetHrefURI and not do so much string stuff
+  rv = GetProtocolFromHrefString(href, aProtocol,
+								 nsGenericHTMLElement::GetOwnerDocument());
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetProtocol: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aProtocol + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aProtocol.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -383,7 +416,30 @@ nsHTMLAnchorElement::GetHost(nsAString& aHost)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetHostFromHrefString(href, aHost);
+
+#else /* XSS */
+
+  rv = GetHostFromHrefString(href, aHost);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetHost: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHost + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHost.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -410,7 +466,30 @@ nsHTMLAnchorElement::GetHostname(nsAString& aHostname)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetHostnameFromHrefString(href, aHostname);
+
+#else /* XSS */
+
+  rv = GetHostnameFromHrefString(href, aHostname);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetHostname: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHostname + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHostname.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -438,7 +517,30 @@ nsHTMLAnchorElement::GetPathname(nsAString& aPathname)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetPathnameFromHrefString(href, aPathname);
+
+#else /* XSS */
+
+  rv = GetPathnameFromHrefString(href, aPathname);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetPathname: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aPathname + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aPathname.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -466,7 +568,30 @@ nsHTMLAnchorElement::GetSearch(nsAString& aSearch)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetSearchFromHrefString(href, aSearch);
+
+#else /* XSS */
+  
+  rv = GetSearchFromHrefString(href, aSearch);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetSearch: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aSearch + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aSearch.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -495,7 +620,30 @@ nsHTMLAnchorElement::GetPort(nsAString& aPort)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetPortFromHrefString(href, aPort);
+
+#else /* XSS */
+  
+  rv = GetPortFromHrefString(href, aPort);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetPort: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aPort + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aPort.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -524,7 +672,30 @@ nsHTMLAnchorElement::GetHash(nsAString& aHash)
   if (NS_FAILED(rv))
     return rv;
 
+#ifndef XSS /* original */
+
   return GetHashFromHrefString(href, aHash);
+
+#else /* XSS */
+
+  rv = GetHashFromHrefString(href, aHash);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::GetHash: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHash + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHash.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP
@@ -584,7 +755,30 @@ nsHTMLAnchorElement::GetText(nsAString& aText)
 NS_IMETHODIMP
 nsHTMLAnchorElement::ToString(nsAString& aSource)
 {
+#ifndef XSS /* original */
+
   return GetHref(aSource);
+
+#else /* XSS */
+  
+  nsresult rv = GetHref(aSource);
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLAnchorElement::ToString: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aSource + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aSource.xssSetTainted(XSS_TAINTED);
+  return rv;
+
+#endif /* XSS */
 }
 
 NS_IMETHODIMP

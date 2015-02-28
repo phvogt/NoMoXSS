@@ -396,6 +396,24 @@ NS_IMETHODIMP CPromptService::ConfirmEx(nsIDOMWindow *parent,
     return NS_OK;    
 }
  
+#ifdef XSS /* XSS */
+NS_IMETHODIMP CPromptService::ConfirmExXSS(nsIDOMWindow *parent,
+                                        const PRUnichar *dialogTitle,
+                                        const PRUnichar *text,
+                                        PRUint32 buttonFlags,
+                                        PRUint32 buttonFlags2,
+                                        const PRUnichar *button0Title,
+                                        const PRUnichar *button1Title,
+                                        const PRUnichar *button2Title,
+                                        const PRUnichar *button3Title,
+                                        const PRUnichar *checkMsg,
+                                        PRBool *checkValue,
+                                        PRInt32 *buttonPressed)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* XSS */
+ 
 //*****************************************************************************
 // CPromptServiceFactory
 //*****************************************************************************   

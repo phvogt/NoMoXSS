@@ -53,6 +53,10 @@
 #include "nsNetUtil.h"
 #include "prlog.h"
 
+#ifdef XSS /* XSS */
+#include "../../../js/src/xsstaint.h"
+#endif /* XSS */
+
 static NS_DEFINE_CID(kThisImplCID, NS_THIS_STANDARDURL_IMPL_CID);
 static NS_DEFINE_CID(kStandardURLCID, NS_STANDARDURL_CID);
 
@@ -1029,6 +1033,18 @@ nsStandardURL::SetSpec(const nsACString &input)
         LOG((" ref       = (%u,%d)\n", mRef.mPos,       mRef.mLen));
     }
 #endif
+#ifdef XSS /* XSS */
+	if (input.xssGetTainted() == XSS_TAINTED)
+	{
+		XSS_LOG("xsstaintstring nsStandardURL::SetSpec: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			NS_ConvertUTF8toUTF16(mSpec) +
+			NS_LITERAL_STRING("' ") +
+			NS_ConvertUTF8toUTF16(input)));
+	} while (0);
+	mSpec.xssSetTainted(input.xssGetTainted());
+#endif /* XSS */
     return rv;
 }
 
@@ -1454,6 +1470,54 @@ nsStandardURL::Equals(nsIURI *unknownOther, PRBool *result)
     NS_RELEASE(other);
     return NS_OK;
 }
+
+#ifdef XSS /* XSS */
+NS_IMETHODIMP
+nsStandardURL::DomainEquals(nsIURI *unknownOther, PRBool *result)
+{
+    NS_ENSURE_ARG_POINTER(unknownOther);
+    NS_PRECONDITION(result, "null pointer");
+
+    nsStandardURL *other;
+    nsresult rv = unknownOther->QueryInterface(kThisImplCID, (void **) &other);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	nsCAutoString thisHost, otherHost;
+
+	// get the host strings
+	rv = this->GetAsciiHost(thisHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+	rv = other->GetAsciiHost(otherHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	// compare the two host strings
+	if (!domainStrEquals(thisHost, otherHost)) {
+        *result = PR_FALSE;
+        return NS_OK;
+	}
+
+    NS_RELEASE(other);
+	*result = PR_TRUE;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsStandardURL::GetDomain(nsACString &result)
+{
+    result = getDomainFromURI(this);
+    return NS_OK;
+}
+
+#endif /* XSS */
 
 NS_IMETHODIMP
 nsStandardURL::SchemeIs(const char *scheme, PRBool *result)

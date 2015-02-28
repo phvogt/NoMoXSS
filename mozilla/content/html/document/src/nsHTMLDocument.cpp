@@ -137,6 +137,11 @@ static char g_detector_contractid[DETECTOR_CONTRACTID_MAX + 1];
 static PRBool gInitDetector = PR_FALSE;
 static PRBool gPlugDetector = PR_FALSE;
 
+#ifdef XSS
+#include "xsstaint.h"
+#include "prlog.h"
+#endif /* XSS */
+
 #include "prmem.h"
 #include "prtime.h"
 
@@ -358,6 +363,12 @@ nsHTMLDocument::Init()
   }
 
   PrePopulateHashTables();
+
+#ifdef XSS /* XSS */
+
+  mXssTaintedHash.Init();
+
+#endif /* XSS */
 
   return NS_OK;
 }
@@ -1630,6 +1641,21 @@ nsHTMLDocument::GetDomain(nsAString& aDomain)
     // etc), just return an null string.
     SetDOMStringToNull(aDomain);
   }
+#ifdef XSS /* XSS */
+  {
+	  nsCString  xss_doc_uri;
+	  if (mDocumentBaseURI) {
+		  mDocumentBaseURI->GetSpec(xss_doc_uri);
+	  }
+	  XSS_LOG("xsstaintstring nsHTMLDocument::GetDomain: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aDomain + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aDomain.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return NS_OK;
 }
@@ -1709,6 +1735,24 @@ nsHTMLDocument::GetURL(nsAString& aURL)
   }
 
   CopyUTF8toUTF16(str, aURL);
+#ifdef XSS /* XSS */
+  // only taint if the url contains a '?'. i.e. there are parameters
+  if (str.FindChar('?') >= 0) {
+	{
+		nsCString  xss_doc_uri;
+		if (mDocumentBaseURI) {
+			mDocumentBaseURI->GetSpec(xss_doc_uri);
+		}
+		XSS_LOG("xsstaintstring nsHTMLDocument::GetURL: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aURL + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+	aURL.xssSetTainted(XSS_TAINTED);
+  }
+#endif /* XSS */
 
   return NS_OK;
 }
@@ -1945,6 +1989,21 @@ nsHTMLDocument::GetCookie(nsAString& aCookie)
     nsXPIDLCString cookie;
     service->GetCookieString(codebaseURI, mChannel, getter_Copies(cookie));
     CopyASCIItoUTF16(cookie, aCookie);
+#ifdef XSS /* XSS */
+	{
+		nsCString  xss_doc_uri;
+		if (mDocumentBaseURI) {
+			mDocumentBaseURI->GetSpec(xss_doc_uri);
+		}
+		XSS_LOG("xsstaintstring nsHTMLDocument::GetCookie: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aCookie + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+	aCookie.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
   }
 
   return NS_OK;
@@ -2528,6 +2587,85 @@ nsHTMLDocument::GetElementsByName(const nsAString& aElementName,
 
   return NS_OK;
 }
+
+#ifdef XSS /* XSS */
+
+/*
+ * Checks if the node (or one of its methods) is tainted.
+ * node ... the nsIDOMNode to test
+ * _retval ... true if the node was tainted, otherwise false
+ */
+NS_IMETHODIMP
+nsHTMLDocument::XssIsNodeTainted(nsIDOMNode *node, PRBool *_retval) {
+
+	*_retval = PR_FALSE;
+	nsInt32HashSet* hashset;
+	
+	mXssTaintedHash.Get(node, &hashset);
+	if (hashset) {
+		*_retval = PR_TRUE;
+	}
+
+	return NS_OK;
+}
+
+/*
+ * Checks if the node and the method is tainted.
+ * node ... the nsIDOMNode to test
+ * method ... the vtblIndex of the method to test
+ * _retval ... true if the node and the method was tainted, otherwise false
+ */
+NS_IMETHODIMP
+nsHTMLDocument::XssIsMethodTainted(nsIDOMNode *node, PRUint32 method, PRBool *_retval) {
+
+	*_retval = PR_FALSE;
+	nsInt32HashSet* hashset;
+	
+	mXssTaintedHash.Get(node, &hashset);
+	if (hashset) {
+		*_retval = hashset->Contains(method);
+	}
+
+	return NS_OK;
+}
+
+/*
+ * Sets the node and the method as tainted.
+ * node ... the nsIDOMNode to taint
+ * method ... the vtblIndex of the method to taint
+ */
+NS_IMETHODIMP
+nsHTMLDocument::XssSetMethodTainted(nsIDOMNode *node, PRUint32 method) {
+
+	nsInt32HashSet* hashset;
+	
+	mXssTaintedHash.Get(node, &hashset);
+
+	/* there is already a hashset at this position, so taint the method */
+	if (hashset) {
+		hashset->Put(method);
+
+	/* create a new hashset, taint the method and add it to the hash */
+	} else {
+		hashset = new nsInt32HashSet();
+		if (hashset) {
+			nsresult rv = hashset->Init(10);
+			NS_ENSURE_SUCCESS(rv, rv);
+
+			/* taint the method */
+			hashset->Put(method);
+
+			/* add the hashset */
+			mXssTaintedHash.Put(node, hashset);
+		} else {
+			return NS_ERROR_OUT_OF_MEMORY;
+		}
+	}
+
+	return NS_OK;
+}
+
+#endif /* XSS */
 
 void
 nsHTMLDocument::AddedForm()

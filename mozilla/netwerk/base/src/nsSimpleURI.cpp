@@ -52,6 +52,10 @@
 #include "nsEscape.h"
 #include "nsNetError.h"
 
+#ifdef XSS /* XSS */
+#include "nsNetUtil.h"
+#endif /* XSS */
+
 static NS_DEFINE_CID(kThisSimpleURIImplementationCID,
                      NS_THIS_SIMPLEURI_IMPLEMENTATION_CID);
 
@@ -301,6 +305,57 @@ nsSimpleURI::Equals(nsIURI* other, PRBool *result)
     *result = eq;
     return NS_OK;
 }
+
+#ifdef XSS /* XSS */
+NS_IMETHODIMP
+nsSimpleURI::DomainEquals(nsIURI *unknownOther, PRBool *result)
+{
+    NS_ENSURE_ARG_POINTER(unknownOther);
+    NS_PRECONDITION(result, "null pointer");
+
+    nsSimpleURI* other;
+    nsresult rv =
+        unknownOther->QueryInterface(kThisSimpleURIImplementationCID,
+                                (void**)other);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	nsCAutoString thisHost, otherHost;
+	
+	// get the host strings
+	rv = this->GetAsciiHost(thisHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+	rv = other->GetAsciiHost(otherHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	// compare the two host strings
+	if (!domainStrEquals(thisHost, otherHost)) {
+        *result = PR_FALSE;
+        return NS_OK;
+	}
+
+    NS_RELEASE(other);
+	*result = PR_TRUE;    
+	return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSimpleURI::GetDomain(nsACString &result)
+{
+    result = getDomainFromURI(this);
+    return NS_OK;
+}
+
+#endif /* XSS */
+
 
 NS_IMETHODIMP
 nsSimpleURI::SchemeIs(const char *i_Scheme, PRBool *o_Equals)

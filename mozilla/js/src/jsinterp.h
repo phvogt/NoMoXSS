@@ -44,6 +44,9 @@
  */
 #include "jsprvtd.h"
 #include "jspubtd.h"
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
 
 JS_BEGIN_EXTERN_C
 
@@ -74,6 +77,15 @@ struct JSStackFrame {
     JSStackFrame    *dormantNext;   /* next dormant frame chain */
     JSAtomMap       *objAtomMap;    /* object atom map, non-null only if we
                                        hit a regexp object literal */
+#ifdef XSS /* XSS */
+	XSS_scope		*scope_root;	/* the taint-scopes (in a linked list) for this frame */
+	XSS_scope		*scope_current; /* the current taint-scope for this frame */
+	jsval			*scope_sp;		/* a pointer to the last not-tainted stackelement*/
+	int				taint_retval;	/* flag if the returnvalue should be tainted or not */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	int				scope_count;	/* counts the number of currently tainted scopes */
+#endif /* XSS_DEBUG */
+#endif /* XSS */
 };
 
 typedef struct JSInlineFrame {

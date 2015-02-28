@@ -111,6 +111,11 @@ ToStringGuts(XPCCallContext& ccx)
         return JS_FALSE;
     }
 
+#ifdef XSS /* XSS */
+	// taint returnvalue of toString()
+	XSS_JSVAL_SET_ISTAINTED(XSS_TAINTED, STRING_TO_JSVAL(str));
+#endif /* XSS */
+
     ccx.SetRetVal(STRING_TO_JSVAL(str));
     return JS_TRUE;
 }

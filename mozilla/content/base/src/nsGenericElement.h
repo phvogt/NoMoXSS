@@ -639,6 +639,18 @@ public:
   static PLDHashTable sEventListenerManagersHash;
   static PLDHashTable sRangeListsHash;
 
+#ifdef XSS /* XSS */
+
+	int xssGetTainted() {
+		return xss_istainted;
+	}
+
+	void xssSetTainted(int tainted) {
+		xss_istainted = tainted;
+	}
+
+#endif /* XSS */
+
 protected:
   /**
    * Copy attributes and children from another content object
@@ -769,6 +781,14 @@ protected:
    * Array containing all attributes and children for this element
    */
   nsAttrAndChildArray mAttrsAndChildren;
+
+#ifdef XSS /* XSS */
+	  
+	// flag if the string is tainted
+	int xss_istainted;
+
+#endif /* XSS */
+
 };
 
 // Internal non-public interface

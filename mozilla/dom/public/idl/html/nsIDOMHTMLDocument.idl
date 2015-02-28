@@ -82,4 +82,10 @@ interface nsIDOMHTMLDocument : nsIDOMDocument
   [noscript] void           writeln(in DOMString text);
 
   nsIDOMNodeList            getElementsByName(in DOMString elementName);
+
+#ifdef XSS /* XSS */
+  [noscript] boolean        XssIsNodeTainted(in nsIDOMNode node);
+  [noscript] boolean        XssIsMethodTainted(in nsIDOMNode node, in unsigned long method);
+  [noscript] void           XssSetMethodTainted(in nsIDOMNode node, in unsigned long method);
+#endif /* XSS */
 };

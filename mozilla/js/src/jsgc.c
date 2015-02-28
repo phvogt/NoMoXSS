@@ -78,15 +78,30 @@
  * This preserves the 1024 byte flags sub-arena size, which relates to the
  * GC_PAGE_SIZE (see below for why).
  */
+#ifndef XSS /* original */
+
 #if JS_BYTES_PER_WORD == 8
 # define GC_THINGS_SHIFT 14     /* 16KB for things on Alpha, etc. */
 #else
 # define GC_THINGS_SHIFT 13     /* 8KB for things on most platforms */
 #endif
+
+
+#else /* XSS: change the constants to reflect the space that xss-values need */
+
+#if JS_BYTES_PER_WORD == 8
+# define GC_THINGS_SHIFT 15     /* 16KB for things on Alpha, etc. */
+#else
+# define GC_THINGS_SHIFT 14     /* 8KB for things on most platforms */
+#endif
+
+#endif /* XSS */
+
 #define GC_THINGS_SIZE  JS_BIT(GC_THINGS_SHIFT)
 #define GC_FLAGS_SIZE   (GC_THINGS_SIZE / sizeof(JSGCThing))
 #define GC_ARENA_SIZE   (GC_THINGS_SIZE + GC_FLAGS_SIZE)
 
+#ifndef XSS
 /*
  * The private JSGCThing struct, which describes a gcFreeList element.
  */
@@ -94,6 +109,8 @@ struct JSGCThing {
     JSGCThing   *next;
     uint8       *flagp;
 };
+/* for XSS it is moved to jsgc.h */
+#endif /* XSS */
 
 /*
  * A GC arena contains one flag byte for each thing in its heap, and supports
@@ -171,6 +188,9 @@ struct JSGCThing {
 typedef struct JSGCPageInfo {
     uint8       *split;
     uint8       *flags;
+#ifdef XSS /* add a taintstructure - necessary to correct the size of the structure if compared to JSGCThing */
+	XSS_taint   taint;
+#endif /* XSS */
 } JSGCPageInfo;
 
 #define FIRST_THING_PAGE(a)     (((a)->base + GC_FLAGS_SIZE) & ~GC_PAGE_MASK)
@@ -262,9 +282,19 @@ JSBool
 js_InitGC(JSRuntime *rt, uint32 maxbytes)
 {
     JS_ASSERT(sizeof(JSGCThing) == sizeof(JSGCPageInfo));
+#ifdef XSS /* Just some debuggingmessages */
+#ifdef XSS_DEBUG
+	printf("JSGCThing %d, JSObject %d\n",sizeof(JSGCThing),sizeof(JSObject));
+#endif /* XSS_DEBUG */
+#endif /* XSS */
     JS_ASSERT(sizeof(JSGCThing) >= sizeof(JSObject));
     JS_ASSERT(sizeof(JSGCThing) >= sizeof(JSString));
     JS_ASSERT(sizeof(JSGCThing) >= sizeof(jsdouble));
+#ifdef XSS /* more debuggingmessages */
+#ifdef XSS_DEBUG
+	printf("GC_FLAGS_SIZE %d, GC_PAGE_SIZE %d GC_THINGS_SHIFT %d\n",GC_FLAGS_SIZE,GC_PAGE_SIZE,GC_THINGS_SHIFT);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
     JS_ASSERT(GC_FLAGS_SIZE >= GC_PAGE_SIZE);
     JS_ASSERT(sizeof(JSStackHeader) >= 2 * sizeof(jsval));
 
@@ -550,7 +580,12 @@ retry:
      */
     thing->next = NULL;
     thing->flagp = NULL;
+#ifdef XSS /* initialize taintstructure */
+	thing->taint.type = XSS_NOTYPE;
+	thing->taint.istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
     JS_UNLOCK_GC(rt);
+
     return thing;
 }
 

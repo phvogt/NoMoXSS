@@ -74,6 +74,9 @@ nsTextFragment::nsTextFragment(const nsTextFragment& aOther)
   } else {
     SetTo(aOther.Get1b(), aOther.GetLength());
   }
+#ifdef XSS /* XSS */
+  xssSetTainted(aOther.xssGetTainted());
+#endif /* XSS */
 }
 
 nsTextFragment::nsTextFragment(const char *aString)
@@ -359,3 +362,12 @@ nsTextFragment::SetBidiFlag()
     }
   }
 }
+
+#ifdef XSS /* XSS */
+
+void
+nsTextFragment::xssSetTainted(int tainted)
+  {
+    xss_istainted = tainted;
+  }
+#endif /* XSS */

@@ -1,0 +1,32 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mozilla", "mozilla.vcproj", "{D8FE28BC-4100-4546-93BB-1ABA0CB31C7A}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jsshell", "js\src\Debug\jsshell\jsshell.vcproj", "{38F517F2-78CD-45DF-A403-A833378F80E4}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{D8FE28BC-4100-4546-93BB-1ABA0CB31C7A}.Debug.ActiveCfg = Debug|Win32
+		{D8FE28BC-4100-4546-93BB-1ABA0CB31C7A}.Debug.Build.0 = Debug|Win32
+		{D8FE28BC-4100-4546-93BB-1ABA0CB31C7A}.Release.ActiveCfg = Release|Win32
+		{D8FE28BC-4100-4546-93BB-1ABA0CB31C7A}.Release.Build.0 = Release|Win32
+		{38F517F2-78CD-45DF-A403-A833378F80E4}.Debug.ActiveCfg = Debug|Win32
+		{38F517F2-78CD-45DF-A403-A833378F80E4}.Debug.Build.0 = Debug|Win32
+		{38F517F2-78CD-45DF-A403-A833378F80E4}.Release.ActiveCfg = Release|Win32
+		{38F517F2-78CD-45DF-A403-A833378F80E4}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionItems) = postSolution
+		mozilla.vsd = mozilla.vsd
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

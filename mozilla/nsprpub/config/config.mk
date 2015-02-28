@@ -32,6 +32,8 @@
 # GPL.
 # 
 
+DEFINES		+= -DXSS=1
+
 # Configuration information for building in the NSPR source module
 
 # Define an include-at-most-once-flag

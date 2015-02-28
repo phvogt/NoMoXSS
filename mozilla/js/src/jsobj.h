@@ -50,6 +50,9 @@
 #include "jshash.h" /* Added by JSIFY */
 #include "jsprvtd.h"
 #include "jspubtd.h"
+#ifdef XSS /* include necessary headerfile */
+#include "xsstaint.h"
+#endif /* XSS */
 
 JS_BEGIN_EXTERN_C
 
@@ -124,6 +127,9 @@ struct JSObjectMap {
 struct JSObject {
     JSObjectMap *map;
     jsval       *slots;
+#ifdef XSS /* add xss-taintstructure */
+	XSS_taint   taint;
+#endif /* XSS */
 };
 
 #define JSSLOT_PROTO        0

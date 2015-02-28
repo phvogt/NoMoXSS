@@ -93,6 +93,7 @@ XPIDLSRCS	= \
 		nsIAuthModule.idl \
 		nsIContentSniffer.idl \
 		nsIAuthPromptProvider.idl \
+		nsIXSSHostConnectPermissionManager.idl \
 		$(NULL)
 
 EXPORTS		= \

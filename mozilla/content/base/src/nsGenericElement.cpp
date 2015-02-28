@@ -101,6 +101,10 @@
 
 #include "nsIDOMXPathEvaluator.h"
 
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
+
 #ifdef DEBUG_waterson
 
 /**
@@ -803,6 +807,9 @@ nsGenericElement::Shutdown()
 nsGenericElement::nsGenericElement()
   : mFlagsOrSlots(GENERIC_ELEMENT_DOESNT_HAVE_DOMSLOTS)
 {
+#ifdef XSS /* XSS */
+	xss_istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
 }
 
 nsGenericElement::~nsGenericElement()

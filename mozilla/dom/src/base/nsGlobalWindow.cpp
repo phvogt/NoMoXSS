@@ -157,6 +157,10 @@
 // belonging to the back-end like nsIContentPolicy
 #include "nsIPopupWindowManager.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 static nsIEntropyCollector *gEntropyCollector          = nsnull;
 static nsIPrefBranch       *gPrefBranch                = nsnull;
 static PRInt32              gRefCnt                    = 0;
@@ -1511,6 +1515,30 @@ NS_IMETHODIMP
 GlobalWindowImpl::GetStatus(nsAString& aStatus)
 {
   aStatus = mStatus;
+
+#ifdef XSS /* XSS */
+
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIDocument> doc(do_QueryInterface(mDocument));
+		nsIURI *docURL;
+		if (doc) {
+			docURL = doc->GetDocumentURI();
+			if (docURL) {
+				docURL->GetSpec(xss_doc_uri);
+			}
+		}
+		XSS_LOG("xsstaintstring GlobalWindowImpl::GetStatus: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aStatus + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aStatus.xssSetTainted(XSS_TAINTED);
+
+#endif /* XSS */
+
   return NS_OK;
 }
 
@@ -1542,7 +1570,31 @@ NS_IMETHODIMP
 GlobalWindowImpl::GetDefaultStatus(nsAString& aDefaultStatus)
 {
   aDefaultStatus = mDefaultStatus;
-  return NS_OK;
+
+#ifdef XSS /* XSS */
+
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIDocument> doc(do_QueryInterface(mDocument));
+	  nsIURI *docURL;
+	  if (doc) {
+		  docURL = doc->GetDocumentURI();
+		  if (docURL) {
+			  docURL->GetSpec(xss_doc_uri);
+		  }
+	  }
+	  XSS_LOG("xsstaintstring GlobalWindowImpl::GetDefaultStatus: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aDefaultStatus + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aDefaultStatus.xssSetTainted(XSS_TAINTED);
+
+#endif /* XSS */
+
+ return NS_OK;
 }
 
 NS_IMETHODIMP

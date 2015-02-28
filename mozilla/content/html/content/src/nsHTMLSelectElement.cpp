@@ -82,6 +82,11 @@
 #include "nsDOMError.h"
 #include "nsRuleNode.h"
 
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#include "nsIDOMHTMLDocument.h"
+#include "prlog.h"
+#endif /* XSS */
 
 class nsHTMLSelectElement;
 
@@ -2107,6 +2112,39 @@ nsHTMLSelectElement::SubmitNamesValues(nsIFormSubmission* aFormSubmission,
     nsAutoString value;
     rv = optionElement->GetValue(value);
     NS_ENSURE_SUCCESS(rv, rv);
+
+#ifdef XSS /* XSS */
+    nsCOMPtr<nsIDOMNode> node(do_QueryInterface(optionElement));
+	if (node) {
+		// Use |GetOwnerDocument| so it works during destruction.
+		nsCOMPtr<nsIDOMDocument> doc;		
+		node->GetOwnerDocument(getter_AddRefs(doc));
+		nsCOMPtr<nsIDOMHTMLDocument> htmlDoc = do_QueryInterface(doc);
+		if (htmlDoc) {
+			// check if form must be tainted
+			PRBool xss_test;
+			htmlDoc->XssIsNodeTainted(node, &xss_test);
+			if (xss_test) {
+				// taint the form
+				{
+					nsCString xss_doc_uri;
+					nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+					if (baseURI) {
+						baseURI->GetSpec(xss_doc_uri);
+					}	  
+					XSS_LOG("xsstaintstring nsHTMLSelectElement::SubmitNamesValues: %s\n",
+						ToNewCString(
+						NS_LITERAL_STRING("'") +
+						NS_ConvertUTF8toUTF16(xss_doc_uri) +
+						NS_LITERAL_STRING("'")
+						));
+				} while (0);
+				aFormSubmission->xssSetTainted(XSS_TAINTED);
+			}
+		}
+	}
+#endif /* XSS */
+
 
     rv = aFormSubmission->AddNameValuePair(this, name, value);
   }

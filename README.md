@@ -49,11 +49,11 @@ To build the web browser use the following steps:
 * Start a cygwin shell, change to d:\mozilla-src\mozilla directory
 * Test the patch:
 
-`/usr/bin/patch.exe -p1 -u --dry-run < ../mozilla-patch/xss.patch`
+`/usr/bin/patch.exe -p1 -u --dry-run < mozilla-patch/xss.patch`
 
 * If everything looks good, apply the patch.
 
-`/usr/bin/patch.exe -p1 -u < ../mozilla-patch/xss.patch`
+`/usr/bin/patch.exe -p1 -u < mozilla-patch/xss.patch`
 
 * Create `d:\mozilla-src\.mozconfig` (use cygwin to create a file starting with a dot!)
 * Exit the cygwin shell and start a windows command shell (cmd.exe)

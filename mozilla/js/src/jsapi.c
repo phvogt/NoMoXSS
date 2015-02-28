@@ -77,6 +77,12 @@
 #include "jsstr.h"
 #include "prmjtime.h"
 
+#ifdef XSS /* include necessary headerfiles */
+#include "xsstaint.h"
+#include "xssdbg.h"
+#include "jsgc.h"
+#endif /* XSS */
+
 #if JS_HAS_FILE_OBJECT
 #include "jsfile.h"
 #endif
@@ -92,6 +98,21 @@
 #else
 #define CHECK_REQUEST(cx)       ((void)0)
 #endif
+
+#ifdef XSS /* XSS */
+
+JS_PUBLIC_API(XSS_taint*) js_XSSGettaint(void *val) {
+	JSGCThing *temp;
+	XSS_taint* result;
+
+	result = 0;
+	temp = (JSGCThing*) val;
+	if (temp != 0) 
+		result = &(temp->taint);
+	return result;
+}
+
+#endif /* XSS */
 
 JS_PUBLIC_API(int64)
 JS_Now()
@@ -595,6 +616,10 @@ JS_TypeOfValue(JSContext *cx, jsval v)
     JSObject *obj;
     JSObjectOps *ops;
     JSClass *clasp;
+#ifdef XSS /* set original type of the jsval v to ensure correct handling */
+	int xss_origtype = XSS_NOTYPE;
+	XSS_JSVAL_GET_ORIGTYPE(v,xss_origtype);
+#endif /* XSS */
 
     CHECK_REQUEST(cx);
     if (JSVAL_IS_OBJECT(v)) {
@@ -619,6 +644,16 @@ JS_TypeOfValue(JSContext *cx, jsval v)
 #endif
             type = JSTYPE_OBJECT;
         }
+#ifdef XSS /* first handle the xss-types */
+	} else if (xss_origtype == JSVAL_BOOLEAN) {
+        type = JSTYPE_BOOLEAN;
+	} else if (xss_origtype == JSVAL_DOUBLE) {
+        type = JSTYPE_NUMBER;
+	} else if (xss_origtype == JSVAL_VOID) {
+		type = JSTYPE_VOID;
+	} else if (xss_origtype == JSVAL_NULL) {
+        type = JSTYPE_OBJECT;
+#endif /* XSS */
     } else if (JSVAL_IS_NUMBER(v)) {
         type = JSTYPE_NUMBER;
     } else if (JSVAL_IS_STRING(v)) {

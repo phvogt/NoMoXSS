@@ -43,6 +43,19 @@
 #include "xpcprivate.h"
 #include "nsCRT.h"
 
+#ifdef XSS /* XSS */
+
+#include "../../xsstaint.h"
+#include "../../../../dist/include/dom/nsIDOMDocument.h"
+#include "../../../../dist/include/dom/nsIDOMHTMLDocument.h"
+#include "../../../../dist/include/dom/nsIDOMHTMLElement.h"
+#include "../../../../dist/include/dom/nsIDOMHTMLInputElement.h"
+#include "../../../../dist/include/dom/nsIDOMHTMLOptionElement.h"
+#include "../../../../dist/include/dom/nsIDOMHTMLSelectElement.h"
+#include "../../jsnum.h"
+
+#endif /* XSS */
+
 /***************************************************************************/
 
 #ifdef XPC_CHECK_CLASSINFO_CLAIMS
@@ -1633,6 +1646,9 @@ XPCWrappedNative::CallMethod(XPCCallContext& ccx,
     uintN err;
     nsIXPCSecurityManager* sm;
     JSBool foundDependentParam;
+#ifdef XSS /* XSS */
+		PRBool xss_taint_retval = PR_FALSE;
+#endif /* XSS */
 
     XPCJSRuntime* rt = ccx.GetRuntime();
     XPCContext* xpcc = ccx.GetXPCContext();
@@ -2018,15 +2034,87 @@ XPCWrappedNative::CallMethod(XPCCallContext& ccx,
         }
     }
 
-
     {
         // avoid deadlock in case the native method blocks somehow
         AutoJSSuspendRequest req(ccx);  // scoped suspend of request
+
+#ifdef XSS /* XSS */
+        nsCOMPtr<nsIDOMNode> node(do_QueryInterface(callee));
+		if (node) {
+			// Use |GetOwnerDocument| so it works during destruction.
+			nsCOMPtr<nsIDOMDocument> doc;		
+			node->GetOwnerDocument(getter_AddRefs(doc));
+			nsCOMPtr<nsIDOMHTMLDocument> htmlDoc = do_QueryInterface(doc);
+			if (htmlDoc) {
+				// check if scope is tainted
+				JSContext* cx = ccx.GetJSContext();
+				if (cx) {
+					if (XSS_SCOPE_ISTAINTED(cx->fp->scope_current) || (cx->fp->taint_retval == XSS_TRUE)) {
+						htmlDoc->XssSetMethodTainted(node, vtblIndex);
+					}
+				}
+
+				// checkbox and radio
+				nsCOMPtr<nsIDOMHTMLInputElement> element(do_QueryInterface(callee));
+				if (element) {
+					/*
+					// GetChecked and SetChecked
+					if ((vtblIndex == 0x43) || (vtblIndex == 0x44)) 
+						htmlDoc->XssSetMethodTainted(node, vtblIndex);
+					// GetDefaultChecked and SetDefaultChecked
+					if ((vtblIndex == 0x38) || (vtblIndex == 0x39)) 
+						htmlDoc->XssSetMethodTainted(node, vtblIndex);
+					*/
+
+					// GetChecked
+					if (vtblIndex == 0x43) 
+						xss_taint_retval = PR_TRUE;
+					// GetDefaultChecked
+					if (vtblIndex == 0x38)
+						xss_taint_retval = PR_TRUE;
+				}
+				// option
+				nsCOMPtr<nsIDOMHTMLOptionElement> optelement(do_QueryInterface(callee));
+				nsCOMPtr<nsIDOMHTMLSelectElement> selectelement(do_QueryInterface(callee));
+				if (optelement || selectelement) {
+					/*
+					// GetDefaultSelected and SetDefaultSelected
+					if ((vtblIndex == 0x37) || (vtblIndex == 0x38)) 
+						htmlDoc->XssSetMethodTainted(node, vtblIndex);
+					// GetSelected and SetSelected
+					if ((vtblIndex == 0x3f) || (vtblIndex == 0x40)) 
+						htmlDoc->XssSetMethodTainted(node, vtblIndex);
+					*/
+					// GetDefaultSelected
+					if (vtblIndex == 0x37)
+						xss_taint_retval = PR_TRUE;
+					// GetSelected
+					if (vtblIndex == 0x3f)
+						xss_taint_retval = PR_TRUE;
+				}
+
+				// check if returnvalue must be tainted
+				PRBool xss_test;
+				htmlDoc->XssIsNodeTainted(node, &xss_test);
+				if (xss_test) {
+					xss_taint_retval = PR_TRUE;
+				}
+			}
+		}
+
+#endif /* XSS */
+
+#ifdef XSS /* XSS */
+//		PR_XSS_SET_DEBUG_LOG(1);
+#endif /* XSS */
 
         // do the invoke
         invokeResult = XPTC_InvokeByIndex(callee, vtblIndex,
                                           paramCount, dispatchParams);
         // resume non-blocking JS operations now
+#ifdef XSS /* XSS */
+//		PR_XSS_SET_DEBUG_LOG(0);
+#endif /* XSS */
     }
 
 
@@ -2120,6 +2208,16 @@ XPCWrappedNative::CallMethod(XPCCallContext& ccx,
                 goto done;
             }
         }
+
+#ifdef XSS /* XSS */
+		if (xss_taint_retval) {
+			if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(v)) {
+				JSContext *cx = ccx.GetJSContext();
+				XSS_ADD_TAINTSTRUCTURE(v);
+			}
+			XSS_JSVAL_SET_ISTAINTED(XSS_TAINTED, v);
+		}
+#endif /* XSS */
 
         if(paramInfo.IsRetval())
         {

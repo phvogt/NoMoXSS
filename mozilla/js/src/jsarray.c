@@ -58,6 +58,11 @@
 #include "jsobj.h"
 #include "jsstr.h"
 
+#ifdef XSS /* add necessary headerfiles */
+#include "xsstaint.h"
+#include "xssdbg.h"
+#endif /* XSS */
+
 /* 2^32 - 1 as a number and a string */
 #define MAXINDEX 4294967295u
 #define MAXSTR   "4294967295"
@@ -1369,6 +1374,10 @@ Array(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     jsuint length;
     jsval *vector;
+#ifdef XSS /* get original types */
+	int xss_origtype = XSS_NOTYPE;
+	XSS_JSVAL_GET_ORIGTYPE(argv[0],xss_origtype);
+#endif /* XSS */
 
     /* If called without new, replace obj with a new Array object. */
     if (!(cx->fp->flags & JSFRAME_CONSTRUCTING)) {
@@ -1387,6 +1396,11 @@ Array(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     } else if (argc > 1) {
         length = (jsuint) argc;
         vector = argv;
+#ifdef XSS /* handle xss-types */
+	} else if (!((xss_origtype == JSVAL_INT) || (xss_origtype == JSVAL_DOUBLE)) && (xss_origtype != XSS_NOTYPE)) {
+        length = 1;
+        vector = argv;
+#endif /* XSS */
     } else if (!JSVAL_IS_NUMBER(argv[0])) {
         length = 1;
         vector = argv;

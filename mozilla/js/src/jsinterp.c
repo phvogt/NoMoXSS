@@ -75,6 +75,18 @@
 #include "jsjit.h"
 #endif
 
+#ifdef XSS /* include necessary headerfile */
+#include "xsstaint.h"
+#include "xssdbg.h"
+#include "jsprvtd.h"
+#include "jsstddef.h"
+#include "jsscript.h"
+#include "jsemit.h"
+#ifndef XSS_SHELL
+#include "prlog.h"
+#endif
+#endif
+
 #ifdef DEBUG
 #define ASSERT_CACHE_IS_EMPTY(cache)                                          \
     JS_BEGIN_MACRO                                                            \
@@ -91,6 +103,10 @@
 #else
 #define ASSERT_CACHE_IS_EMPTY(cache) ((void)0)
 #endif
+
+
+
+
 
 void
 js_FlushPropertyCache(JSContext *cx)
@@ -181,8 +197,18 @@ static JSClass prop_iterator_class = {
  * NB: PUSH_OPND uses sp, depth, and pc from its lexical environment.  See
  * js_Interpret for these local variables' declarations and uses.
  */
+#ifndef XSS /* original */
 #define PUSH_OPND(v)    (sp[-depth] = (jsval)pc, PUSH(v))
+#else /* XSS */
+#define PUSH_OPND(v)    (sp[-depth] = (jsval)pc, PUSH(v));XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,(sp-1), taintoutput)
+#endif /* XSS */
+
+#ifndef XSS /* original */
 #define STORE_OPND(n,v) (sp[(n)-depth] = (jsval)pc, sp[n] = (v))
+#else /* XSS */
+#define STORE_OPND(n,v) (sp[(n)-depth] = (jsval)pc, sp[n] = (v));XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,(sp+(n)), taintoutput)
+#endif /* XSS */
+
 #define POP_OPND()      POP()
 #define FETCH_OPND(n)   (sp[n])
 
@@ -191,6 +217,8 @@ static JSClass prop_iterator_class = {
  * Try to convert d to a jsint that fits in a jsval, otherwise GC-alloc space
  * for it and push a reference.
  */
+#ifndef XSS /* original */
+
 #define STORE_NUMBER(cx, n, d)                                                \
     JS_BEGIN_MACRO                                                            \
         jsint i_;                                                             \
@@ -205,6 +233,28 @@ static JSClass prop_iterator_class = {
         }                                                                     \
         STORE_OPND(n, v_);                                                    \
     JS_END_MACRO
+
+#else /* XSS */
+
+#define STORE_NUMBER(cx, n, d)                                                \
+    JS_BEGIN_MACRO                                                            \
+        jsint i_;                                                             \
+        jsval v_;                                                             \
+                                                                              \
+        if (JSDOUBLE_IS_INT(d, i_) && INT_FITS_IN_JSVAL(i_)) {                \
+            ok = js_NewDoubleValue(cx, d, &v_);                               \
+            if (!ok)                                                          \
+                goto out;                                                     \
+        } else {                                                              \
+            ok = js_NewDoubleValue(cx, d, &v_);                               \
+            if (!ok)                                                          \
+                goto out;                                                     \
+        }                                                                     \
+        STORE_OPND(n, v_);                                                    \
+    JS_END_MACRO
+
+#endif /* XSS */
+
 
 #define FETCH_NUMBER(cx, n, d)                                                \
     JS_BEGIN_MACRO                                                            \
@@ -229,8 +279,8 @@ static JSClass prop_iterator_class = {
 
 #define FETCH_UINT(cx, n, ui)                                                 \
     JS_BEGIN_MACRO                                                            \
-        jsval v_ = FETCH_OPND(n);                                             \
         jsint i_;                                                             \
+        jsval v_ = FETCH_OPND(n);                                             \
         if (JSVAL_IS_INT(v_) && (i_ = JSVAL_TO_INT(v_)) >= 0) {               \
             ui = (uint32) i_;                                                 \
         } else {                                                              \
@@ -245,6 +295,8 @@ static JSClass prop_iterator_class = {
  * Optimized conversion macros that test for the desired type in v before
  * homing sp and calling a conversion function.
  */
+#ifndef XSS /* original */
+
 #define VALUE_TO_NUMBER(cx, v, d)                                             \
     JS_BEGIN_MACRO                                                            \
         if (JSVAL_IS_INT(v)) {                                                \
@@ -258,6 +310,31 @@ static JSClass prop_iterator_class = {
                 goto out;                                                     \
         }                                                                     \
     JS_END_MACRO
+
+#else /* XSS if it is not a double, then create a new double and return it */
+
+#define VALUE_TO_NUMBER(cx, v, d)                                             \
+    JS_BEGIN_MACRO                                                            \
+		jsdouble *dp;														  \
+        if (JSVAL_IS_INT(v)) {                                                \
+            d = (jsdouble)JSVAL_TO_INT(v);                                    \
+			dp = js_NewDouble(cx, d);										  \
+            d = *dp;														  \
+		} else if (JSVAL_IS_DOUBLE(v)) {                                      \
+            d = *JSVAL_TO_DOUBLE(v);                                          \
+        } else {                                                              \
+            SAVE_SP(fp);                                                      \
+			dp = js_NewDouble(cx, 1.0);										  \
+            ok = js_ValueToNumber(cx, v, dp);								  \
+			d = *dp;														  \
+            if (!ok)                                                          \
+                goto out;                                                     \
+        }                                                                     \
+    JS_END_MACRO
+
+#endif /* XSS */
+
+#ifndef XSS /* original */
 
 #define POP_BOOLEAN(cx, v, b)                                                 \
     JS_BEGIN_MACRO                                                            \
@@ -275,6 +352,29 @@ static JSClass prop_iterator_class = {
         sp--;                                                                 \
     JS_END_MACRO
 
+#else /* XSS */
+
+#define POP_BOOLEAN(cx, v, b)                                                 \
+    JS_BEGIN_MACRO                                                            \
+        v = FETCH_OPND(-1);                                                   \
+		XSS_TO_ORIG_JSVAL(v, xss_jsval);									  \
+        if (xss_jsval == JSVAL_NULL) {										  \
+            b = JS_FALSE;                                                     \
+        } else if (JSVAL_IS_BOOLEAN(v)) {                                     \
+            b = JSVAL_TO_BOOLEAN(v);                                          \
+        } else {                                                              \
+            SAVE_SP(fp);                                                      \
+            ok = js_ValueToBoolean(cx, v, &b);                                \
+            if (!ok)                                                          \
+                goto out;                                                     \
+        }                                                                     \
+        sp--;                                                                 \
+    JS_END_MACRO
+
+#endif /* XSS */
+
+#ifndef XSS /* original */
+
 #define VALUE_TO_OBJECT(cx, v, obj)                                           \
     JS_BEGIN_MACRO                                                            \
         if (JSVAL_IS_OBJECT(v) && v != JSVAL_NULL) {                          \
@@ -289,13 +389,41 @@ static JSClass prop_iterator_class = {
         }                                                                     \
     JS_END_MACRO
 
+#else /* XSS */
+
+#define VALUE_TO_OBJECT(cx, v, obj)                                           \
+    JS_BEGIN_MACRO                                                            \
+		XSS_TO_ORIG_JSVAL(v, xss_jsval);									  \
+        if (JSVAL_IS_OBJECT(xss_jsval) && xss_jsval != JSVAL_NULL) {          \
+            obj = JSVAL_TO_OBJECT(v);                                         \
+        } else {                                                              \
+            SAVE_SP(fp);                                                      \
+            obj = js_ValueToNonNullObject(cx, v);                             \
+            if (!obj) {                                                       \
+                ok = JS_FALSE;                                                \
+                goto out;                                                     \
+            }                                                                 \
+        }                                                                     \
+    JS_END_MACRO
+
+#endif /* XSS */
+
 #if JS_BUG_VOID_TOSTRING
+#ifndef XSS /* original */
 #define CHECK_VOID_TOSTRING(cx, v)                                            \
     if (JSVAL_IS_VOID(v)) {                                                   \
         JSString *str_;                                                       \
         str_ = ATOM_TO_STRING(cx->runtime->atomState.typeAtoms[JSTYPE_VOID]); \
         v = STRING_TO_JSVAL(str_);                                            \
     }
+#else /* XSS */
+#define CHECK_VOID_TOSTRING(cx, v)                                            \
+    if (XSS_JSVAL_GET_TYPE(v) == JSVAL_VOID) {                                \
+        JSString *str_;                                                       \
+        str_ = ATOM_TO_STRING(cx->runtime->atomState.typeAtoms[JSTYPE_VOID]); \
+        v = STRING_TO_JSVAL(str_);                                            \
+    }
+#endif /* XSS */
 #else
 #define CHECK_VOID_TOSTRING(cx, v)  ((void)0)
 #endif
@@ -626,6 +754,58 @@ ComputeThis(JSContext *cx, JSObject *thisp, JSStackFrame *fp)
     return JS_TRUE;
 }
 
+#ifndef XSS_DEBUG
+
+/* create a new scope or merge it with the current node */
+#define XSS_NEW_SCOPE(prevnode, startpc, endpc, settainted)			\
+	/* create a new scope */										\
+	xss_temp_scope = XSS_SCOPE_CREATE;								\
+	XSS_SCOPE_INIT(xss_temp_scope, XSS_NOT_TAINTED);				\
+    XSS_SCOPE_SET(prevnode, xss_temp_scope, settainted, startpc, endpc, op); \
+	/* advance scope_current */										\
+	XSS_SCOPE_ADVANCE_NEXT(prevnode);
+
+/* free the scopes */
+#define XSS_SCOPES_FREE_ALL(framefp)								\
+	if (framefp) {													\
+		XSS_SCOPE_FREE(framefp->scope_root, framefp->scope_current);	\
+	}
+
+#else /* XSS_DEBUG */
+
+/* create a new scope or merge it with the current node */
+#define XSS_NEW_SCOPE(prevnode, startpc, endpc, settainted)			\
+	fp->scope_count++;												\
+	if (xssGetDoLog() == XSS_DO_LOG)								\
+		fprintf(stderr, "+scopes: %d\n", fp->scope_count);			\
+	/* create a new scope */										\
+	xss_temp_scope = XSS_SCOPE_CREATE;								\
+	XSS_SCOPE_INIT(xss_temp_scope, XSS_NOT_TAINTED);				\
+    XSS_SCOPE_SET(prevnode, xss_temp_scope, settainted, startpc, endpc, op);	\
+	/* advance scope_current */										\
+	XSS_SCOPE_ADVANCE_NEXT(prevnode);								\
+	XSS_PRINTDEBUG_STR("added ");									\
+	XSS_PRINT_SCOPE(tracefp, script, prevnode)						\
+	XSS_PRINTDEBUG_STR("\n");
+
+/* free the scopes */
+#define XSS_SCOPES_FREE_ALL(framefp)								\
+	if (framefp) {													\
+		int recount = 0;											\
+		recount = XSS_SCOPE_FREE(framefp->scope_root, framefp->scope_current);	\
+		if (recount != framefp->scope_count) {						\
+			XSS_PRINTDEBUG_STR("difference! to free: ");			\
+			XSS_PRINTDEBUG_INT(framefp->scope_count);				\
+			XSS_PRINTDEBUG_STR(" freed: ");							\
+			XSS_PRINTDEBUG_INT(recount);							\
+			XSS_PRINTDEBUG_STR("\n");								\
+		}															\
+		framefp->scope_count = 0;									\
+	}
+
+#endif /* XSS_DEBUG */
+
+
 /*
  * Find a function reference and its 'this' object implicit first parameter
  * under argc arguments on cx's stack, and call the function.  Push missing
@@ -650,6 +830,17 @@ js_Invoke(JSContext *cx, uintN argc, uintN flags)
     intN nslots, nalloc, surplus;
     JSInterpreterHook hook;
     void *hookData;
+#ifdef XSS /* XSS */
+	int xss_inited;
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	FILE *tracefp = stderr;
+	int old_xss_do_log = 0;
+#endif /* XSS_DEBUG */
+#ifndef XSS_SHELL
+	int old_xss_debug_log = 0;
+#endif /* XSS_SHELL */
+
+#endif /* XSS */
 
     /* Mark the top of stack and load frequently-used registers. */
     mark = JS_ARENA_MARK(&cx->stackPool);
@@ -841,8 +1032,20 @@ have_fun:
     frame.sharpArray = NULL;
     frame.dormantNext = NULL;
     frame.objAtomMap = NULL;
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	if (xssGetDoLog() == XSS_DO_LOG)
+		fprintf(stderr, "js_Invoke: t = ");
+#endif /* XSS_DEBUG */
+	if (XSS_SCOPE_ISTAINTED(fp->scope_current)) {
+		XSS_SCOPE_INIT_ROOT(frame, XSS_TAINTED, fp->taint_retval);
+	} else {
+		XSS_SCOPE_INIT_ROOT(frame, XSS_NOT_TAINTED, fp->taint_retval);
+	}
+	xss_inited = 1;
+#endif /* XSS */
 
-    /* Compute the 'this' parameter and store it in frame as frame.thisp. */
+	/* Compute the 'this' parameter and store it in frame as frame.thisp. */
     ok = ComputeThis(cx, thisp, &frame);
     if (!ok)
         goto out2;
@@ -938,7 +1141,49 @@ have_fun:
         /* If native, use caller varobj and scopeChain for eval. */
         frame.varobj = fp->varobj;
         frame.scopeChain = fp->scopeChain;
-        ok = native(cx, frame.thisp, argc, frame.argv, &frame.rval);
+#ifdef XSS /* XSS */
+#ifndef XSS_SHELL
+		old_xss_debug_log = PR_XSS_DEBUG_LOG();
+#endif /* XSS_SHELL */
+		/* save the script-value */
+		do {
+			JSScript *script = fp->script;
+			if (script && script->filename) {
+#ifdef XSS_DEBUG
+#ifndef XSS_SHELL
+				if (strstr(script->filename,"http:") != NULL) {
+					old_xss_do_log = xssGetDoLog();
+
+					xssSetDoLog(XSS_DO_LOG);
+					fprintf(stderr, "script = %s\n", script->filename);
+				}
+#endif /* XSS_SHELL */
+#endif /* XSS_DEBUG */
+#ifndef XSS_SHELL
+				if (strstr(script->filename,"chrome:") == NULL) {
+					PR_XSS_SET_DEBUG_LOG(1);
+					PR_XSS_SET_DEBUG_FILENAME((char *)script->filename);
+				}
+#endif /* XSS_SHELL */
+#ifdef XSS_DEBUG
+#ifdef XSS_SHELL
+				old_xss_do_log = xssGetDoLog();
+				xssSetDoLog(XSS_DO_LOG);
+				fprintf(stderr, "script = %s\n", script->filename);
+#endif /* XSS_SHELL */
+#endif /* XSS_DEBUG */
+			}
+		} while (0); 
+#endif /* XSS */
+		ok = native(cx, frame.thisp, argc, frame.argv, &frame.rval);
+#ifdef XSS /* XSS */
+#ifndef XSS_SHELL
+		PR_XSS_SET_DEBUG_LOG(old_xss_debug_log);
+#endif /* XSS_SHELL */
+#ifdef XSS_DEBUG
+		xssSetDoLog(old_xss_do_log);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
         JS_RUNTIME_METER(cx->runtime, nativeCalls);
     } else if (script) {
         /* Use parent scope so js_GetCallObject can find the right "Call". */
@@ -963,7 +1208,8 @@ have_fun:
     }
 
 out:
-    if (hookData) {
+
+	if (hookData) {
         hook = cx->runtime->callHook;
         if (hook)
             hook(cx, &frame, JS_FALSE, &ok, hookData);
@@ -978,6 +1224,12 @@ out:
     if (frame.argsobj)
         ok &= js_PutArgsObject(cx, &frame);
 #endif
+
+#ifdef XSS /* XSS */
+	if (xss_inited == 1) {
+		XSS_SCOPES_FREE_ALL((&frame));
+	}
+#endif /* XSS */
 
     /* Restore cx->fp now that we're done releasing frame objects. */
     cx->fp = fp;
@@ -1087,6 +1339,12 @@ js_Execute(JSContext *cx, JSObject *chain, JSScript *script,
     JSBool ok;
     JSInterpreterHook hook;
     void *hookData;
+#ifdef XSS /* XSS */
+	int xss_inited;
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	FILE *tracefp = stderr;
+#endif /* XSS_DEBUG */
+#endif /* XSS */
 
     hook = cx->runtime->executeHook;
     hookData = NULL;
@@ -1128,6 +1386,22 @@ js_Execute(JSContext *cx, JSObject *chain, JSScript *script,
     frame.flags = special;
     frame.dormantNext = NULL;
     frame.objAtomMap = NULL;
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	if (xssGetDoLog() == XSS_DO_LOG)
+		fprintf(stderr, "js_Execute: t = ");
+#endif /* XSS_DEBUG */
+	if ((cx->fp != NULL) && XSS_SCOPE_ISTAINTED(cx->fp->scope_current)) {
+		XSS_SCOPE_INIT_ROOT(frame, XSS_TAINTED, cx->fp->taint_retval);
+	} else {
+		if (cx->fp != NULL) {
+			XSS_SCOPE_INIT_ROOT(frame, XSS_NOT_TAINTED, cx->fp->taint_retval);
+		} else {
+			XSS_SCOPE_INIT_ROOT(frame, XSS_NOT_TAINTED, XSS_FALSE);
+		}
+	}
+	xss_inited = 1;
+#endif /* XSS */
 
     /*
      * Here we wrap the call to js_Interpret with code to (conditionally)
@@ -1164,6 +1438,13 @@ js_Execute(JSContext *cx, JSObject *chain, JSScript *script,
         if (hook)
             hook(cx, &frame, JS_FALSE, &ok, hookData);
     }
+
+#ifdef XSS /* XSS */
+	if (xss_inited == 1) {
+		XSS_SCOPES_FREE_ALL(cx->fp);
+	}
+#endif /* XSS */
+
     cx->fp = oldfp;
 
     if (oldfp && oldfp != down) {
@@ -1265,6 +1546,22 @@ ImportProperty(JSContext *cx, JSObject *obj, jsid id)
         } else {
             prop = NULL;
         }
+#ifdef XSS /* XSS */
+		/* taint the value if the scope is tainted */
+		if ((cx->fp->scope_current != NULL) && 
+			((cx->fp->scope_current->istainted) || (cx->fp->scope_current->prev_istainted))) {
+
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+			FILE *tracefp;
+			tracefp = stderr;
+#endif /* XSS_DEBUG */
+
+			if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(value)) {
+				XSS_ADD_TAINTSTRUCTURE(value);
+			}
+			XSS_JSVAL_SET_ISTAINTED(XSS_TAINTED, value);			
+		}
+#endif /* XSS */
         if (prop && target == obj2) {
             ok = OBJ_SET_PROPERTY(cx, target, id, &value);
         } else {
@@ -1353,6 +1650,9 @@ js_CheckRedeclaration(JSContext *cx, JSObject *obj, jsid id, uintN attrs,
 }
 
 #ifndef MAX_INTERP_LEVEL
+
+#ifndef XSS /* original */
+
 #if defined(XP_OS2)
 #define MAX_INTERP_LEVEL 250
 #elif defined _MSC_VER && _MSC_VER <= 800
@@ -1360,6 +1660,12 @@ js_CheckRedeclaration(JSContext *cx, JSObject *obj, jsid id, uintN attrs,
 #else
 #define MAX_INTERP_LEVEL 1000
 #endif
+
+#else /* XSS */
+/* because scopes add data to stack */
+#define MAX_INTERP_LEVEL 64
+#endif /* XSS */
+
 #endif
 
 #define MAX_INLINE_CALL_COUNT 1000
@@ -1375,6 +1681,14 @@ js_Interpret(JSContext *cx, jsval *result)
     JSVersion currentVersion, originalVersion;
     JSBranchCallback onbranch;
     JSBool ok, cond;
+#ifdef XSS /* add some internal variables*/
+	jsdouble doubleval;
+	XSS_taint* xss_taint;
+	int taintoutput, taintout_var, taintout_stack, taintout_scope, taintoutput_temp, taint_retval_old;
+	jsval xss_jsval, xss_jsval2;
+	XSS_scope *xss_temp_scope;
+	jsbytecode *xss_pc;
+#endif /* XSS */
     JSTrapHandler interruptHandler;
     jsint depth, len;
     jsval *sp, *newsp;
@@ -1410,6 +1724,71 @@ js_Interpret(JSContext *cx, jsval *result)
     JSPropertyOp getter, setter;
 #endif
     int stackDummy;
+#ifdef XSS /* XSS */
+	int xss_inited;
+#endif /* XSS */
+
+#ifdef XSS
+
+	taintoutput = XSS_NOT_TAINTED;
+	/* taint the root scope if the result or the old scope is tainted */
+	if (XSS_JSVAL_IS_TAINTED(*result)) {
+		taintoutput = XSS_TAINTED;
+	}
+	if ((cx->fp != NULL) && XSS_SCOPE_ISTAINTED(cx->fp->scope_current)) {
+		taintoutput = XSS_TAINTED;
+	}
+
+
+#define XSS_TAINT_JSVAL_ON_OUTPUT(myjsval)								\
+	/* check if tainting is necessary */							    \
+	if (taintoutput == XSS_TAINTED) {									\
+		/* add taintstructure if necessary */							\
+		if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(myjsval)) {					\
+			XSS_ADD_TAINTSTRUCTURE(myjsval);							\
+		}																\
+		/* taint value */												\
+		XSS_JSVAL_SET_ISTAINTED(XSS_TAINTED, myjsval);					\
+	}
+
+/* taint if the stackelement is tainted at the given depth (n) */
+#define XSS_TAINTOUTPUT_ON_STACK										\
+			taintout_stack = XSS_SCOPE_STACK_IS_TAINTED(sp, fp->scope_sp)
+
+/* set check scope */
+#define XSS_TAINTOUTPUT_ON_SCOPE										\
+			/* taint if the scope is tainted */							\
+			taintout_scope = XSS_SCOPE_ISTAINTED(fp->scope_current)
+
+/* check myval */
+#define XSS_TAINTOUTPUT_ON_VALUE(myval)									\
+			/* taint if the condition is tainted or the scope */		\
+			if (JSVAL_IS_OBJECT(myval)) {								\
+				if (JSVAL_TO_OBJECT(myval) != cx->globalObject) {		\
+					taintout_var = XSS_JSVAL_IS_TAINTED(myval)			\
+						|| taintout_var;								\
+				/* global Object is never tainted */					\
+				} else {												\
+					XSS_JSVAL_SET_ISTAINTED(XSS_NOT_TAINTED, myval);	\
+				}														\
+			} else {													\
+					taintout_var = XSS_JSVAL_IS_TAINTED(myval)			\
+						|| taintout_var;								\
+			}
+
+/* set the taintouput-var */
+#define XSS_CALC_TAINTOUTPUT											\
+	taintoutput = taintout_stack || taintout_scope || taintout_var;		\
+	if (xssGetDoLog() == XSS_DO_LOG) {									\
+		fprintf(stderr, "stack = %d scope = %d var = %d taintoutput = %d globalObject = %d\n", \
+			taintout_stack, taintout_scope, taintout_var, taintoutput, (uint)  cx->globalObject);	\
+	}																	\
+
+
+#ifdef XSS_DEBUG /* add tracing to stderr */
+	cx->tracefp = stderr;
+#endif /* XSS_DEBUG */
+#endif /* XSS */
 
     *result = JSVAL_VOID;
     rt = cx->runtime;
@@ -1417,6 +1796,45 @@ js_Interpret(JSContext *cx, jsval *result)
     /* Set registerized frame pointer and derived script pointer. */
     fp = cx->fp;
     script = fp->script;
+
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	setbuf(stderr,NULL);
+	do {
+		JSScript *script = fp->script;
+		if (script && script->filename) {
+#ifndef XSS_SHELL /* XSS_SHELL */
+			if (strstr(script->filename,"http:") != NULL) {
+				xssSetDoLog(XSS_DO_LOG);
+				fprintf(stderr, "script = %s\n", script->filename);
+			}
+#endif /* XSS_SHELL */
+		}
+	} while (0); 
+#ifdef XSS_SHELL /* XSS_SHELL */
+	xssSetDoLog(XSS_DO_LOG);
+	fprintf(stderr, "script = %s\n", script->filename);
+#endif /* XSS_SHELL */
+	if (xssGetDoLog() == XSS_DO_LOG)
+		fprintf(stderr, "js_Interpret: ");
+#endif /* XSS_DEBUG */
+	xss_inited = 0;
+	if (fp) {
+		/* initialize the xss-scope */
+		if (fp->scope_root == 0) {
+			XSS_SCOPE_INIT_ROOT((*fp),taintoutput, fp->taint_retval);
+			xss_inited = 1;
+		}
+
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+		if (xssGetDoLog() == XSS_DO_LOG) {
+			fprintf(stderr, "init fp %u\n", fp->scope_root);
+			fprintf(stderr, "+scopes: %d\n", fp->scope_count);
+			XSS_PRINT_SCOPE(cx->tracefp, script, fp->scope_current);
+		}
+#endif /* XSS_DEBUG */
+	}
+#endif /* XSS */
 
     /* Count of JS function calls that nest in this C js_Interpret frame. */
     inlineCallCount = 0;
@@ -1469,7 +1887,21 @@ js_Interpret(JSContext *cx, jsval *result)
     depth = (jsint) script->depth;
     len = -1;
 
-    /* Check for too much js_Interpret nesting, or too deep a C stack. */
+#ifdef XSS
+#ifdef XSS_DEBUG
+	if (xssGetDoLog() == XSS_DO_LOG) {
+		fprintf(stderr, "---------------------------------------------------------------------\n");
+		fprintf(stderr, "start of sourcecode\n");
+
+		js_Disassemble(cx,script,JS_TRUE, stderr);
+
+		fprintf(stderr, "end of sourcecode\n");
+		fprintf(stderr, "---------------------------------------------------------------------\n");
+	}
+#endif /* XSS_DEBUG */
+#endif /* XSS */
+
+	/* Check for too much js_Interpret nesting, or too deep a C stack. */
     if (++cx->interpLevel == MAX_INTERP_LEVEL ||
         !JS_CHECK_STACK_SIZE(cx, stackDummy)) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_OVER_RECURSED);
@@ -1497,7 +1929,54 @@ js_Interpret(JSContext *cx, jsval *result)
         len = cs->length;
 
 #ifdef DEBUG
-        tracefp = (FILE *) cx->tracefp;
+		tracefp = (FILE *) cx->tracefp;
+#endif
+#ifdef XSS /* XSS */
+		XSS_RESET_TAINTOUTPUT(taintoutput);
+		XSS_RESET_TAINTOUTPUT(taintout_scope);
+		XSS_RESET_TAINTOUTPUT(taintout_var);
+		XSS_RESET_TAINTOUTPUT(taintout_stack);
+#ifdef XSS_DEBUG
+		if (xssGetDoLog() == XSS_DO_LOG) {
+			XSS_PRINTDEBUG_STR("\n");
+			if (fp->scope_root == NULL) {
+				XSS_PRINTDEBUG_STR("scope_root is null!\n");
+			}
+		}
+#endif /* XSS_DEBUG */
+		while ((fp->scope_root != fp->scope_current) 
+			&& !XSS_SCOPE_PC_IN_CURRENT(pc, fp->scope_current)) {
+#ifdef XSS_DEBUG
+			if (xssGetDoLog() == XSS_DO_LOG) {
+				XSS_PRINTDEBUG_STR("removing ");
+				XSS_PRINT_SCOPE(tracefp, script, fp->scope_current);
+				fprintf(stderr, "before count: %d\n", fp->scope_count);
+				XSS_PRINT_SCOPE(stderr, script, fp->scope_current);
+			}
+#endif /* XSS_DEBUG */
+			fp->scope_current = XSS_SCOPE_REMOVE(fp->scope_current);
+			if (fp->scope_current == NULL) {
+				fp->scope_current = fp->scope_root;
+#ifdef XSS_DEBUG
+				XSS_PRINTDEBUG_STR("fp->scope_current is null!\n");
+#endif /* XSS_DEBUG */
+			}
+#ifdef XSS_DEBUG
+			fp->scope_count--;
+			if (xssGetDoLog() == XSS_DO_LOG) {
+				XSS_PRINTDEBUG_STR("after ");
+				XSS_PRINT_SCOPE(stderr, script, fp->scope_current);
+				fprintf(stderr, "-scopes: %d\n", fp->scope_count);
+			}
+#endif /* XSS_DEBUG */
+		}
+		XSS_SCOPE_STACK_REMOVE(sp, fp->scope_sp);
+#endif /* XSS */
+
+#ifdef XSS_DEBUG
+		if (xssGetDoLog() == XSS_DO_LOG) {
+#endif /* XSS */
+#ifdef DEBUG
         if (tracefp) {
             intN nuses, n;
 
@@ -1511,17 +1990,25 @@ js_Interpret(JSContext *cx, jsval *result)
                 for (n = -nuses; n < 0; n++) {
                     str = js_DecompileValueGenerator(cx, n, sp[n], NULL);
                     if (str != NULL) {
-                        fprintf(tracefp, "%s %s",
-                                (n == -nuses) ? "  inputs:" : ",",
-                                JS_GetStringBytes(str));
+                        fprintf(tracefp, "%s [%d] %s(%u @ %x)", 
+                                (n == -nuses) ? "  inputs:" : ",", n, 
+                                JS_GetStringBytes(str), (uint) sp[n], (uint) sp+(n));
+#ifdef XSS
+#ifdef XSS_DEBUG
+						XSS_PRINT_GC_TAINT(sp[n]);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
                     }
                 }
                 fprintf(tracefp, " @ %d\n", sp - fp->spbase);
             }
         }
 #endif
+#ifdef XSS_DEBUG
+		}
+#endif /* XSS */
 
-        if (interruptHandler) {
+		if (interruptHandler) {
             SAVE_SP(fp);
             switch (interruptHandler(cx, script, pc, &rval,
                                      rt->interruptHandlerData)) {
@@ -1545,26 +2032,65 @@ js_Interpret(JSContext *cx, jsval *result)
             LOAD_INTERRUPT_HANDLER(rt);
         }
 
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG
+		if (xssGetDoLog() == XSS_DO_LOG) {
+			if (XSS_SCOPE_PC_IN_CURRENT(pc, fp->scope_current)) {
+				XSS_PRINT_SCOPE(tracefp, script, fp->scope_current);
+			}
+		}
+#endif /* XSS_DEBUG */
+#endif /* XSS */
+		
         switch (op) {
+		  /*
+		   * Just a no-operation
+		   * e.g. used for do {} while (false);
+		   */
           case JSOP_NOP:
             break;
 
+		  /*
+		   * Groups expressions
+		   * e.g. var x = (2 + y);
+		   */
           case JSOP_GROUP:
             obj = NULL;
             break;
 
+		  /*
+		   * pushes void on the stack
+		   * e.g. before: for (x in {}) {}
+		   */
           case JSOP_PUSH:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_VOID);
             break;
 
+		  /*
+		   * pops the element from the stack
+		   * e.g. after: var a = "2";
+		   */
           case JSOP_POP:
             sp--;
             break;
 
+		  /*
+		   * pops 2 elements from the stack
+		   * e.g. after: for (x in {}) {}
+		   */
           case JSOP_POP2:
             sp -= 2;
             break;
 
+		  /*
+		   * Swaps 2 stackelements. no longer needed.
+		   */
           case JSOP_SWAP:
             /*
              * N.B. JSOP_SWAP doesn't swap the corresponding generating pcs
@@ -1575,11 +2101,51 @@ js_Interpret(JSContext *cx, jsval *result)
             sp[-2] = ltmp;
             break;
 
+		  /*
+		   * pops the value from the stack and sets it as script-result
+		   * e.g.: "end";
+		   */
           case JSOP_POPV:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             *result = POP_OPND();
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(*result);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(*result);
+
+			/* get the real type/value, if this isn't a internal call */
+			if (fp->taint_retval != XSS_TRUE) {
+				XSS_TO_ORIG_JSVAL(*result, *result);
+			}
+#endif /* XSS */
             break;
 
+		  /*
+		   * Marks the beginning of a with-statement.
+		   * e.g. var dut = { }; with (dut) {};
+		   */
           case JSOP_ENTERWITH:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the with-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole with-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
             VALUE_TO_OBJECT(cx, rval, obj);
             withobj = js_NewObject(cx, &js_WithClass, obj, fp->scopeChain);
@@ -1589,6 +2155,10 @@ js_Interpret(JSContext *cx, jsval *result)
             STORE_OPND(-1, OBJECT_TO_JSVAL(withobj));
             break;
 
+		  /*
+		   * Marks the end of a with-statement
+		   * e.g. var dut = {}; with (dut) {};
+		   */
           case JSOP_LEAVEWITH:
             rval = POP_OPND();
             JS_ASSERT(JSVAL_IS_OBJECT(rval));
@@ -1600,16 +2170,51 @@ js_Interpret(JSContext *cx, jsval *result)
             fp->scopeChain = JSVAL_TO_OBJECT(rval);
             break;
 
+		  /*
+		   * Sets returnval in try-catch-finally-statements
+		   * e.g. 	try {} catch (e) { return "1";} finally { return "2";}
+		   */
           case JSOP_SETRVAL:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             fp->rval = POP_OPND();
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(fp->rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(fp->rval);
+#endif /* XSS */
             break;
 
+		  
+		  /*
+		   * Sets returnvalue
+		   * e.g. return x;
+		   */
           case JSOP_RETURN:
             CHECK_BRANCH(-1);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             fp->rval = POP_OPND();
             /* FALL THROUGH */
 
+		  /*
+		   * sets returnvalue in try-catch-finally-statements
+		   * e.g. 	try {} catch (e) { return "1";} finally { return "2";}
+		   */
           case JSOP_RETRVAL:    /* fp->rval already set */
+#ifdef XSS /* XSS */
+			if (op == JSOP_RETRVAL) {
+				/* check if the stack is tainted or the scope */
+				XSS_TAINTOUTPUT_ON_STACK;
+				XSS_TAINTOUTPUT_ON_SCOPE;
+			}
+#endif /* XSS */
             if (inlineCallCount)
           inline_return:
             {
@@ -1639,12 +2244,26 @@ js_Interpret(JSContext *cx, jsval *result)
                 vp = fp->argv - 2;
                 *vp = fp->rval;
 
+#ifdef XSS /* XSS */
+				XSS_TAINTOUTPUT_ON_VALUE(*vp);
+				XSS_CALC_TAINTOUTPUT;
+				XSS_TAINT_JSVAL_ON_OUTPUT(*vp);
+				XSS_SCOPES_FREE_ALL(fp);
+#endif /* XSS */
                 /* Restore cx->fp and release the inline frame's space. */
                 cx->fp = fp = fp->down;
+#ifdef XSS /* XSS */
+				if (fp->scope_root == NULL) {
+					XSS_SCOPE_INIT_ROOT((*fp), XSS_NOT_TAINTED, XSS_TRUE);
+				}
+#endif /* XSS */
                 JS_ARENA_RELEASE(&cx->stackPool, ifp->mark);
 
                 /* Restore sp to point just above the return value. */
                 fp->sp = vp + 1;
+#ifdef XSS /* XSS */
+				XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,vp,taintoutput);
+#endif /* XSS */
                 RESTORE_SP(fp);
 
                 /* Restore the calling script's interpreter registers. */
@@ -1673,37 +2292,119 @@ js_Interpret(JSContext *cx, jsval *result)
             (void) POP();
             /* FALL THROUGH */
 #endif
+		  /*
+		   * an unconditional jump (generated by the engine)
+		   */
           case JSOP_GOTO:
             len = GET_JUMP_OFFSET(pc);
             CHECK_BRANCH(len);
             break;
 
+		  /*
+		   * jump on a condition
+		   * e.g. if (true) {} else {};
+		   */
           case JSOP_IFEQ:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
-            if (cond == JS_FALSE) {
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new taint scope
+			   calculate then-branch */
+			xss_pc = pc + GET_JUMP_OFFSET(pc);
+			/* add else-branch (if exists) */
+			if (((JSOp) *(xss_pc-3)) == JSOP_GOTO) {
+				/* if it is a while then the new xss_pc is back not forward */
+				if (GET_JUMP_OFFSET(xss_pc-3) > 0) {
+					xss_pc = xss_pc + GET_JUMP_OFFSET(xss_pc-3);
+				}
+			}
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+
+#endif /* XSS */
+			if (cond == JS_FALSE) {
                 len = GET_JUMP_OFFSET(pc);
                 CHECK_BRANCH(len);
             }
             break;
 
+		  /*
+		   * Jump if condition is false
+		   * used in e.g. do {} while {true};
+		   */
           case JSOP_IFNE:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new taint scope. the scope from the last time is already removed */
+			xss_pc = pc + GET_JUMP_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);				
+#endif /* XSS */
             if (cond != JS_FALSE) {
                 len = GET_JUMP_OFFSET(pc);
                 CHECK_BRANCH(len);
             }
             break;
 
+		  /*
+		   * check boolean-or-expressions. it stops evaluating on
+		   * the first "true"-value
+		   * e.g. var a = 0 || b || 0; // stops on b if b == true
+		   */
           case JSOP_OR:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new scope */
+			xss_pc = pc + GET_JUMP_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
             if (cond == JS_TRUE) {
                 len = GET_JUMP_OFFSET(pc);
                 PUSH_OPND(rval);
             }
             break;
 
+		  /*
+		   * check boolean-and-expressions. it stops evaluating on
+		   * the first "false"-value
+		   * e.g. var a = 1 && b && 1; // stops on b if b == false
+		   */
           case JSOP_AND:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			/* new scope */
+			xss_pc = pc + GET_JUMP_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
+
             if (cond == JS_FALSE) {
                 len = GET_JUMP_OFFSET(pc);
                 PUSH_OPND(rval);
@@ -1716,45 +2417,139 @@ js_Interpret(JSContext *cx, jsval *result)
             (void) POP();
             /* FALL THROUGH */
 #endif
+		  /*
+		   * an unconditional extended jump (generated by the engine)
+		   */
           case JSOP_GOTOX:
             len = GET_JUMPX_OFFSET(pc);
             CHECK_BRANCH(len);
             break;
 
+		  /*
+		   * (extended) jump on a condition 
+		   * e.g. if (true) {} else {};
+		   */
           case JSOP_IFEQX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new taint scope
+			   calculate then-branch */
+			xss_pc = pc + GET_JUMPX_OFFSET(pc);
+			/* add else-branch (if exists) */
+			if (((JSOp) *(xss_pc-3)) == JSOP_GOTO) {
+				/* if it is a while then the new xss_pc is back not forward */
+				if (GET_JUMPX_OFFSET(xss_pc-3) > 0) {
+					xss_pc = xss_pc + GET_JUMPX_OFFSET(xss_pc-3);
+				}
+			}
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
             if (cond == JS_FALSE) {
                 len = GET_JUMPX_OFFSET(pc);
                 CHECK_BRANCH(len);
             }
             break;
 
+		  /*
+		   * (extended) jump if condition is false
+		   * used in e.g. do {} while {true};
+		   */
           case JSOP_IFNEX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new taint scope. the scope from the last time is already removed */
+			xss_pc = pc + GET_JUMPX_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
             if (cond != JS_FALSE) {
                 len = GET_JUMPX_OFFSET(pc);
                 CHECK_BRANCH(len);
             }
             break;
 
+		  /*
+		   * check boolean-or-expressions. it stops evaluating on
+		   * the first "true"-value
+		   * e.g. var a = 0 || b || 0; // stops on b if b == true
+		   */
           case JSOP_ORX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new scope */
+			xss_pc = pc + GET_JUMPX_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
             if (cond == JS_TRUE) {
                 len = GET_JUMPX_OFFSET(pc);
                 PUSH_OPND(rval);
             }
             break;
 
+		  /*
+		   * check boolean-and-expressions. it stops evaluating on
+		   * the first "false"-value
+		   * e.g. var a = 1 && b && 1; // stops on b if b == false
+		   */
           case JSOP_ANDX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* new scope */
+			xss_pc = pc + GET_JUMPX_OFFSET(pc);
+			XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+#endif /* XSS */
             if (cond == JS_FALSE) {
                 len = GET_JUMPX_OFFSET(pc);
                 PUSH_OPND(rval);
             }
             break;
 
+		  /*
+		   * Converts stackelement into object
+		   * e.g. for (p in Array) {}
+		   */
           case JSOP_TOOBJECT:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             SAVE_SP(fp);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             ok = js_ValueToObject(cx, FETCH_OPND(-1), &obj);
             if (!ok)
                 goto out;
@@ -1785,7 +2580,16 @@ js_Interpret(JSContext *cx, jsval *result)
     JS_END_MACRO
 
 #if JS_HAS_IN_OPERATOR
+		  /*
+		   * for the "in" operator (not the "in" in a for-in-loop!)
+		   * e.g. var a = "foo" in x;
+		   */
           case JSOP_IN:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
             if (JSVAL_IS_PRIMITIVE(rval)) {
                 str = js_DecompileValueGenerator(cx, -1, rval, NULL);
@@ -1803,12 +2607,22 @@ js_Interpret(JSContext *cx, jsval *result)
             ok = OBJ_LOOKUP_PROPERTY(cx, obj, id, &obj2, &prop);
             if (!ok)
                 goto out;
+#ifdef XSS /* XSS */
+			OBJ_GET_PROPERTY(cx,obj,id, &xss_jsval);
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             STORE_OPND(-1, BOOLEAN_TO_JSVAL(prop != NULL));
             if (prop)
                 OBJ_DROP_PROPERTY(cx, obj2, prop);
             break;
 #endif /* JS_HAS_IN_OPERATOR */
 
+		  /*
+		   * for-in-loop with a property
+		   * e.g. var ob = { 'x' : 0 };for (ob.x in dut){};
+		   */
           case JSOP_FORPROP:
             /*
              * Handle JSOP_FORPROP first, so the cost of the goto do_forinloop
@@ -1820,6 +2634,10 @@ js_Interpret(JSContext *cx, jsval *result)
             i = -2;
             goto do_forinloop;
 
+		  /*
+		   * for-in-loop with a name
+		   * e.g. var test = 0; for (test in dut) {}
+		   */
           case JSOP_FORNAME:
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
@@ -1841,7 +2659,15 @@ js_Interpret(JSContext *cx, jsval *result)
             lval = OBJECT_TO_JSVAL(obj);
             /* FALL THROUGH */
 
+		  /*
+		   * for-in-loop with an function-argument
+		   * e.g. function test (a) { ... for (a in dut) { ... }}
+		   */
           case JSOP_FORARG:
+		  /*
+		   * for-in-loop with an function-variable
+		   * e.g. function test () { var a; ... for (a in dut) { ... }}
+		   */
           case JSOP_FORVAR:
             /*
              * JSOP_FORARG and JSOP_FORVAR don't require any lval computation
@@ -1850,6 +2676,10 @@ js_Interpret(JSContext *cx, jsval *result)
              */
             /* FALL THROUGH */
 
+		  /*
+		   * for-in-loop with an element
+		   * e.g. for (ob[0] in dut)
+		   */
           case JSOP_FORELEM:
             /*
              * JSOP_FORELEM simply initializes or updates the iteration state
@@ -1864,6 +2694,12 @@ js_Interpret(JSContext *cx, jsval *result)
              * ECMA-compatible for/in evals the object just once, before loop.
              * Bad old bytecodes (since removed) did it on every iteration.
              */
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(sp[i]);
+#endif /* XSS */
             obj = JSVAL_TO_OBJECT(sp[i]);
 
             /* If the thing to the right of 'in' has no properties, break. */
@@ -1889,7 +2725,11 @@ js_Interpret(JSContext *cx, jsval *result)
             rval = *vp;
 
             /* Is this the first iteration ? */
+#ifndef XSS /* original */
             if (JSVAL_IS_VOID(rval)) {
+#else /* XSS */
+            if (XSS_JSVAL_GET_TYPE(rval) == JSVAL_VOID) {
+#endif /* XSS */
                 /* Yes, create a new JSObject to hold the iterator state */
                 propobj = js_NewObject(cx, &prop_iterator_class, NULL, obj);
                 if (!propobj) {
@@ -1998,6 +2838,15 @@ js_Interpret(JSContext *cx, jsval *result)
                 rval = STRING_TO_JSVAL(str);
             }
 
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+			if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(rval)) {
+				XSS_ADD_TAINTSTRUCTURE(rval);
+			}
+			XSS_JSVAL_SET_ISTAINTED(XSS_NOT_TAINTED, rval);
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+#endif /* XSS */
+
             switch (op) {
               case JSOP_FORARG:
                 slot = GET_ARGNO(pc);
@@ -2022,6 +2871,12 @@ js_Interpret(JSContext *cx, jsval *result)
 
                 /* Set the variable obj[id] to refer to rval. */
                 fp->flags |= JSFRAME_ASSIGNING;
+#ifdef XSS /* XSS */
+				/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+				if (taintoutput == XSS_TAINTED) {
+					XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+				}
+#endif /* XSS */
                 ok = OBJ_SET_PROPERTY(cx, obj, id, &rval);
                 fp->flags &= ~JSFRAME_ASSIGNING;
                 if (!ok)
@@ -2034,19 +2889,42 @@ js_Interpret(JSContext *cx, jsval *result)
 
           end_forinloop:
             sp += i + 1;
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 
+		  /*
+		   * Duplicates the topmost stackelement.
+		   * Used for properties and assignments, that also use the lval
+		   * e.g. t.test += 1;
+		   */
           case JSOP_DUP:
             JS_ASSERT(sp > fp->spbase);
             rval = sp[-1];
             PUSH_OPND(rval);
             break;
 
+		  /*
+		   * Duplicates the 2 topmost stackelements.
+		   * Used for Array and assignments, that also use the lval
+		   * e.g. t[0] += 1;
+		   */
           case JSOP_DUP2:
             JS_ASSERT(sp - 1 > fp->spbase);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             lval = FETCH_OPND(-2);
             rval = FETCH_OPND(-1);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(lval);
             PUSH_OPND(rval);
             break;
@@ -2129,10 +3007,24 @@ js_Interpret(JSContext *cx, jsval *result)
         }                                                                     \
     JS_END_MACRO
 
+		  /*
+		   * sets a constant
+		   * e.g. const x = 3;
+		   */
           case JSOP_SETCONST:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             obj = fp->varobj;
             atom = GET_ATOM(cx, script, pc);
             rval = FETCH_OPND(-1);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+#endif /* XSS */
             ok = OBJ_DEFINE_PROPERTY(cx, obj, (jsid)atom, rval, NULL, NULL,
                                      JSPROP_ENUMERATE | JSPROP_PERMANENT |
                                      JSPROP_READONLY,
@@ -2142,7 +3034,16 @@ js_Interpret(JSContext *cx, jsval *result)
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Puts the variable on the stack for later JSOP_SETNAME
+		   * e.g. b = ... puts "b" on the stack
+		   */
           case JSOP_BINDNAME:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             SAVE_SP(fp);
             obj = js_FindIdentifierBase(cx, (jsid)atom);
@@ -2150,17 +3051,60 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			/* only check the object if it isn't the global object */
+			xss_jsval = OBJECT_TO_JSVAL(obj);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+            PUSH_OPND(xss_jsval);
+#else /* not XSS */
             PUSH_OPND(OBJECT_TO_JSVAL(obj));
+#endif /* XSS */
             break;
 
+		  /*
+		   * Assigns a value to a variable
+		   * e.g. a = b; takes "a" and "b" from the stack and
+		   * assigns the value of "b" to "a"
+		   */
           case JSOP_SETNAME:
-            atom = GET_ATOM(cx, script, pc);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
+			atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
             rval = FETCH_OPND(-1);
             lval = FETCH_OPND(-2);
-            JS_ASSERT(!JSVAL_IS_PRIMITIVE(lval));
+#ifdef XSS_DEBUG
+			/* taint rval, if the var is called "evil". e.g. var evil = ... */
+			str = ATOM_TO_STRING(atom);
+			if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(rval)) {
+				XSS_ADD_TAINTSTRUCTURE(rval);
+			}
+			XSS_TAINT_EVILSTR(str, rval);
+
+			/* taint rval if it is the string "evil". e.g. ... = "evil"; */
+			if (JSVAL_IS_STRING(rval)) {
+				str = js_ValueToString(cx,rval);
+				XSS_TAINT_EVILSTR(str, rval);
+			}
+#endif /* XSS_DEBUG */
+
+			JS_ASSERT(!JSVAL_IS_PRIMITIVE(lval));
             obj  = JSVAL_TO_OBJECT(lval);
             SAVE_SP(fp);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
             CACHED_SET(OBJ_SET_PROPERTY(cx, obj, id, &rval));
             if (!ok)
                 goto out;
@@ -2168,6 +3112,7 @@ js_Interpret(JSContext *cx, jsval *result)
             STORE_OPND(-1, rval);
             break;
 
+#ifndef XSS /* original */
 #define INTEGER_OP(OP, EXTRA_CODE)                                            \
     JS_BEGIN_MACRO                                                            \
         FETCH_INT(cx, -1, j);                                                 \
@@ -2179,18 +3124,49 @@ js_Interpret(JSContext *cx, jsval *result)
         sp--;                                                                 \
         STORE_NUMBER(cx, -1, d);                                              \
     JS_END_MACRO
+#else /* XSS */
+#define INTEGER_OP(OP, EXTRA_CODE)                                            \
+    JS_BEGIN_MACRO                                                            \
+		/* check if the stack is tainted or the scope */					  \
+		XSS_TAINTOUTPUT_ON_STACK;											  \
+		XSS_TAINTOUTPUT_ON_SCOPE;											  \
+		XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));							  \
+		XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));							  \
+		XSS_CALC_TAINTOUTPUT;												  \
+        FETCH_INT(cx, -1, j);                                                 \
+        FETCH_INT(cx, -2, i);                                                 \
+        if (!ok)                                                              \
+            goto out;                                                         \
+        EXTRA_CODE                                                            \
+        d = i OP j;                                                           \
+        sp--;                                                                 \
+        STORE_NUMBER(cx, -1, d);                                              \
+    JS_END_MACRO
+#endif /* XSS */
 
 #define BITWISE_OP(OP)          INTEGER_OP(OP, (void) 0;)
 #define SIGNED_SHIFT_OP(OP)     INTEGER_OP(OP, j &= 31;)
 
+		  /*
+		   * Bitwise or
+		   * a = a | 2;
+		   */
           case JSOP_BITOR:
             BITWISE_OP(|);
             break;
 
+		  /*
+		   * Bitwise xor
+		   * a = a ^ 2;
+		   */
           case JSOP_BITXOR:
             BITWISE_OP(^);
             break;
 
+		  /*
+		   * Bitwise and
+		   * a = a & 2;
+		   */
           case JSOP_BITAND:
             BITWISE_OP(&);
             break;
@@ -2204,6 +3180,7 @@ js_Interpret(JSContext *cx, jsval *result)
 #define COMPARE_DOUBLES(LVAL, OP, RVAL, IFNAN) ((LVAL) OP (RVAL))
 #endif
 
+#ifndef XSS /* original */
 #define RELATIONAL_OP(OP)                                                     \
     JS_BEGIN_MACRO                                                            \
         rval = FETCH_OPND(-1);                                                \
@@ -2235,7 +3212,49 @@ js_Interpret(JSContext *cx, jsval *result)
         sp--;                                                                 \
         STORE_OPND(-1, BOOLEAN_TO_JSVAL(cond));                               \
     JS_END_MACRO
+#else /* XSS */
+#define RELATIONAL_OP(OP)                                                     \
+    JS_BEGIN_MACRO                                                            \
+        rval = FETCH_OPND(-1);                                                \
+        lval = FETCH_OPND(-2);                                                \
+		/* check if the stack is tainted or the scope */					  \
+		XSS_TAINTOUTPUT_ON_STACK;											  \
+		XSS_TAINTOUTPUT_ON_SCOPE;											  \
+		XSS_TAINTOUTPUT_ON_VALUE(lval);										  \
+		XSS_TAINTOUTPUT_ON_VALUE(rval);										  \
+		XSS_CALC_TAINTOUTPUT;												  \
+        /* Optimize for two int-tagged operands (typical loop control). */    \
+        if ((lval & rval) & JSVAL_INT) {                                      \
+            ltmp = lval ^ JSVAL_VOID;                                         \
+            rtmp = rval ^ JSVAL_VOID;                                         \
+            if (ltmp && rtmp) {                                               \
+                cond = JSVAL_TO_INT(lval) OP JSVAL_TO_INT(rval);              \
+            } else {                                                          \
+                d  = ltmp ? JSVAL_TO_INT(lval) : *rt->jsNaN;                  \
+                d2 = rtmp ? JSVAL_TO_INT(rval) : *rt->jsNaN;                  \
+                cond = COMPARE_DOUBLES(d, OP, d2, JS_FALSE);                  \
+            }                                                                 \
+        } else {                                                              \
+            VALUE_TO_PRIMITIVE(cx, lval, JSTYPE_NUMBER, &lval);               \
+            VALUE_TO_PRIMITIVE(cx, rval, JSTYPE_NUMBER, &rval);               \
+            if (JSVAL_IS_STRING(lval) && JSVAL_IS_STRING(rval)) {             \
+                str  = JSVAL_TO_STRING(lval);                                 \
+                str2 = JSVAL_TO_STRING(rval);                                 \
+                cond = js_CompareStrings(str, str2) OP 0;                     \
+            } else {                                                          \
+                VALUE_TO_NUMBER(cx, lval, d);                                 \
+                VALUE_TO_NUMBER(cx, rval, d2);                                \
+                cond = COMPARE_DOUBLES(d, OP, d2, JS_FALSE);                  \
+            }                                                                 \
+        }                                                                     \
+        sp--;                                                                 \
+		/* store result in a double (and taint it) */						  \
+	    XSS_BOOLEAN_TO_DOUBLE_JSVAL(cond,doubleval);						  \
+		STORE_OPND(-1, DOUBLE_TO_JSVAL(doubleval));							  \
+    JS_END_MACRO
+#endif /* XSS */
 
+#ifndef XSS /* original */
 #define EQUALITY_OP(OP, IFNAN)                                                \
     JS_BEGIN_MACRO                                                            \
         rval = FETCH_OPND(-1);                                                \
@@ -2283,15 +3302,84 @@ js_Interpret(JSContext *cx, jsval *result)
         STORE_OPND(-1, BOOLEAN_TO_JSVAL(cond));                               \
     JS_END_MACRO
 
+#else /* XSS */
+
+#define EQUALITY_OP(OP, IFNAN)                                                \
+    JS_BEGIN_MACRO                                                            \
+		/* check if the stack is tainted or the scope */					  \
+		XSS_TAINTOUTPUT_ON_STACK;											  \
+		XSS_TAINTOUTPUT_ON_SCOPE;											  \
+        rval = FETCH_OPND(-1);                                                \
+        lval = FETCH_OPND(-2);                                                \
+		XSS_TAINTOUTPUT_ON_VALUE(lval);										  \
+		XSS_TAINTOUTPUT_ON_VALUE(rval);										  \
+		XSS_CALC_TAINTOUTPUT;												  \
+        ltmp = JSVAL_TAG(lval);                                               \
+        rtmp = JSVAL_TAG(rval);                                               \
+        if (ltmp == rtmp) {                                                   \
+            if (ltmp == JSVAL_STRING) {                                       \
+                str  = JSVAL_TO_STRING(lval);                                 \
+                str2 = JSVAL_TO_STRING(rval);                                 \
+                cond = js_CompareStrings(str, str2) OP 0;                     \
+            } else if (ltmp == JSVAL_DOUBLE) {                                \
+                d  = *JSVAL_TO_DOUBLE(lval);                                  \
+                d2 = *JSVAL_TO_DOUBLE(rval);                                  \
+                cond = COMPARE_DOUBLES(d, OP, d2, IFNAN);                     \
+            } else {                                                          \
+                /* Handle all undefined (=>NaN) and int combinations. */      \
+                cond = lval OP rval;                                          \
+            }                                                                 \
+        } else {                                                              \
+			jsval xss_temp_lval, xss_temp_rval;								  \
+			XSS_TO_ORIG_JSVAL(lval, xss_temp_lval);							  \
+			XSS_TO_ORIG_JSVAL(rval, xss_temp_rval);							  \
+            if (JSVAL_IS_NULL(xss_temp_lval) || JSVAL_IS_VOID(xss_temp_lval)) {                 \
+                cond = (JSVAL_IS_NULL(xss_temp_rval) || JSVAL_IS_VOID(xss_temp_rval)) OP 1;     \
+            } else if (JSVAL_IS_NULL(xss_temp_rval) || JSVAL_IS_VOID(xss_temp_rval)) {          \
+                cond = 1 OP 0;                                                \
+            } else {                                                          \
+                if (ltmp == JSVAL_OBJECT) {                                   \
+                    VALUE_TO_PRIMITIVE(cx, lval, JSTYPE_VOID, &lval);         \
+                    ltmp = JSVAL_TAG(lval);                                   \
+                } else if (rtmp == JSVAL_OBJECT) {                            \
+                    VALUE_TO_PRIMITIVE(cx, rval, JSTYPE_VOID, &rval);         \
+                    rtmp = JSVAL_TAG(rval);                                   \
+                }                                                             \
+                if (ltmp == JSVAL_STRING && rtmp == JSVAL_STRING) {           \
+                    str  = JSVAL_TO_STRING(lval);                             \
+                    str2 = JSVAL_TO_STRING(rval);                             \
+                    cond = js_CompareStrings(str, str2) OP 0;                 \
+                } else {                                                      \
+                    VALUE_TO_NUMBER(cx, lval, d);                             \
+                    VALUE_TO_NUMBER(cx, rval, d2);                            \
+                    cond = COMPARE_DOUBLES(d, OP, d2, IFNAN);                 \
+                }                                                             \
+            }                                                                 \
+        }                                                                     \
+        sp--;                                                                 \
+	    XSS_BOOLEAN_TO_DOUBLE_JSVAL(cond,doubleval);						  \
+		STORE_OPND(-1, DOUBLE_TO_JSVAL(doubleval));							  \
+    JS_END_MACRO
+#endif /* XSS */
+
+		  /*
+		   * Compares 2 values
+		   * e.g. var a = x == 2;
+		   */
           case JSOP_EQ:
             EQUALITY_OP(==, JS_FALSE);
             break;
 
+		  /*
+		   * Compares 2 values
+		   * e.g. var a = x != 2;
+		   */
           case JSOP_NE:
             EQUALITY_OP(!=, JS_TRUE);
             break;
 
 #if !JS_BUG_FALLIBLE_EQOPS
+#ifndef XSS /* original */
 #define NEW_EQUALITY_OP(OP, IFNAN)                                            \
     JS_BEGIN_MACRO                                                            \
         rval = FETCH_OPND(-1);                                                \
@@ -2326,34 +3414,137 @@ js_Interpret(JSContext *cx, jsval *result)
         sp--;                                                                 \
         STORE_OPND(-1, BOOLEAN_TO_JSVAL(cond));                               \
     JS_END_MACRO
+#else /* XSS: converted the values and then stored it differently */
+#define NEW_EQUALITY_OP(OP, IFNAN)                                            \
+    JS_BEGIN_MACRO                                                            \
+		/* check if the stack is tainted or the scope */					  \
+		XSS_TAINTOUTPUT_ON_STACK;											  \
+		XSS_TAINTOUTPUT_ON_SCOPE;											  \
+        rval = FETCH_OPND(-1);                                                \
+        lval = FETCH_OPND(-2);                                                \
+		XSS_TAINTOUTPUT_ON_VALUE(lval);										  \
+		XSS_TAINTOUTPUT_ON_VALUE(rval);										  \
+		XSS_CALC_TAINTOUTPUT;												  \
+ 		XSS_TO_ORIG_JSVAL(rval, rval);										  \
+		XSS_TO_ORIG_JSVAL(lval, lval);										  \
+        ltmp = JSVAL_TAG(lval);                                               \
+        rtmp = JSVAL_TAG(rval);                                               \
+        if (ltmp == rtmp) {                                                   \
+            if (ltmp == JSVAL_STRING) {                                       \
+                str  = JSVAL_TO_STRING(lval);                                 \
+                str2 = JSVAL_TO_STRING(rval);                                 \
+                cond = js_CompareStrings(str, str2) OP 0;                     \
+            } else if (ltmp == JSVAL_DOUBLE) {                                \
+                d  = *JSVAL_TO_DOUBLE(lval);                                  \
+                d2 = *JSVAL_TO_DOUBLE(rval);                                  \
+                cond = COMPARE_DOUBLES(d, OP, d2, IFNAN);                     \
+            } else {                                                          \
+                cond = lval OP rval;                                          \
+            }                                                                 \
+        } else {                                                              \
+            if (ltmp == JSVAL_DOUBLE && JSVAL_IS_INT(rval)) {                 \
+                d  = *JSVAL_TO_DOUBLE(lval);                                  \
+                d2 = JSVAL_TO_INT(rval);                                      \
+                cond = COMPARE_DOUBLES(d, OP, d2, IFNAN);                     \
+            } else if (JSVAL_IS_INT(lval) && rtmp == JSVAL_DOUBLE) {          \
+                d  = JSVAL_TO_INT(lval);                                      \
+                d2 = *JSVAL_TO_DOUBLE(rval);                                  \
+                cond = COMPARE_DOUBLES(d, OP, d2, IFNAN);                     \
+            } else {                                                          \
+                cond = lval OP rval;                                          \
+            }                                                                 \
+        }                                                                     \
+        sp--;                                                                 \
+	    XSS_BOOLEAN_TO_DOUBLE_JSVAL(cond,doubleval);						  \
+		STORE_OPND(-1, DOUBLE_TO_JSVAL(doubleval));							  \
+    JS_END_MACRO
+#endif /* XSS */
 
+		  /*
+		   * Compares to operands for equality (including type)
+		   * e.g. var a = 1; var b = "1"; print(a === b);
+		   */
           case JSOP_NEW_EQ:
             NEW_EQUALITY_OP(==, JS_FALSE);
             break;
 
+		  /*
+		   * Compares to operands for unequality (including type)
+		   * e.g. var a = 1; var b = "1"; print(a !== b);
+		   */
           case JSOP_NEW_NE:
             NEW_EQUALITY_OP(!=, JS_TRUE);
             break;
 
 #if JS_HAS_SWITCH_STATEMENT
+		  /*
+		   * Checks condition in a case-statement.
+		   * e.g. switch(x) { case (x == 1): }
+		   */
           case JSOP_CASE:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             NEW_EQUALITY_OP(==, JS_FALSE);
             (void) POP();
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+		    /* reset the stack-pointer if necessary */
+			XSS_SCOPE_STACK_REMOVE(sp, fp->scope_sp);
+			/* create a scope */
+			if (taintoutput == XSS_TAINTED) {
+				xss_temp_scope = XSS_SCOPE_WITH_OP_BACK(fp->scope_current, JSOP_CONDSWITCH);
+				if (xss_temp_scope != NULL) {
+					xss_pc = xss_temp_scope->to;
+					XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+				}
+			}
+#endif /* XSS */
             if (cond) {
                 len = GET_JUMP_OFFSET(pc);
                 CHECK_BRANCH(len);
             } else {
+#ifdef XSS /* XSS */
+				XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,sp, taintoutput);
+#endif /* XSS */
                 PUSH(lval);
             }
             break;
 
+		  /*
+		   * Checks condition in a case-statement (with many cases).
+		   * e.g. switch(x) { case (x == 1): }
+		   */
           case JSOP_CASEX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             NEW_EQUALITY_OP(==, JS_FALSE);
             (void) POP();
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+		    /* reset the stack-pointer if necessary */
+			XSS_SCOPE_STACK_REMOVE(sp, fp->scope_sp);
+			/* create a scope */
+			if (taintoutput == XSS_TAINTED) {
+				xss_temp_scope = XSS_SCOPE_WITH_OP_BACK(fp->scope_current, JSOP_CONDSWITCH);
+				if (xss_temp_scope != NULL) {
+					xss_pc = xss_temp_scope->to;
+					XSS_NEW_SCOPE(fp->scope_current, pc, xss_pc, taintoutput);
+				}
+			}
+#endif /* XSS */
             if (cond) {
                 len = GET_JUMPX_OFFSET(pc);
                 CHECK_BRANCH(len);
             } else {
+#ifdef XSS /* XSS */
+				XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,sp, taintoutput);
+#endif /* XSS */
                 PUSH(lval);
             }
             break;
@@ -2361,18 +3552,34 @@ js_Interpret(JSContext *cx, jsval *result)
 
 #endif /* !JS_BUG_FALLIBLE_EQOPS */
 
+		  /*
+		   * compares to value for less-than
+		   * e.g. a < 3
+		   */
           case JSOP_LT:
             RELATIONAL_OP(<);
             break;
 
+		  /*
+		   * compares to value for less-equal
+		   * e.g. a <= 3
+		   */
           case JSOP_LE:
             RELATIONAL_OP(<=);
             break;
 
+		  /*
+		   * compares to value for greater-than
+		   * e.g. a > 3
+		   */
           case JSOP_GT:
             RELATIONAL_OP(>);
             break;
 
+		  /*
+		   * compares to value for greater-equal
+		   * e.g. a >= 3
+		   */
           case JSOP_GE:
             RELATIONAL_OP(>=);
             break;
@@ -2380,18 +3587,38 @@ js_Interpret(JSContext *cx, jsval *result)
 #undef EQUALITY_OP
 #undef RELATIONAL_OP
 
+		  /*
+		   * Binary leftshift
+		   * e.g. 1 << a;
+		   */
           case JSOP_LSH:
             SIGNED_SHIFT_OP(<<);
-            break;
+			break;
 
+		  /*
+		   * Binary rightshift
+		   * e.g. a >> 3;
+		   */
           case JSOP_RSH:
             SIGNED_SHIFT_OP(>>);
             break;
 
+		  /*
+		   * Unsigned binary-rightshift
+		   * e.g. a >>> 3;
+		   */
           case JSOP_URSH:
           {
             uint32 u;
 
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             FETCH_INT(cx, -1, j);
             FETCH_UINT(cx, -2, u);
             j &= 31;
@@ -2405,9 +3632,23 @@ js_Interpret(JSContext *cx, jsval *result)
 #undef BITWISE_OP
 #undef SIGNED_SHIFT_OP
 
+		  /*
+		   * Adds to values
+		   * e.g. a + b;
+		   */
           case JSOP_ADD:
+#ifdef XSS
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
             lval = FETCH_OPND(-2);
+#ifdef XSS 
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             VALUE_TO_PRIMITIVE(cx, lval, JSTYPE_VOID, &ltmp);
             VALUE_TO_PRIMITIVE(cx, rval, JSTYPE_VOID, &rtmp);
             if ((cond = JSVAL_IS_STRING(ltmp)) || JSVAL_IS_STRING(rtmp)) {
@@ -2438,6 +3679,8 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+#ifndef XSS /* original */
+
 #define BINARY_OP(OP)                                                         \
     JS_BEGIN_MACRO                                                            \
         FETCH_NUMBER(cx, -1, d2);                                             \
@@ -2447,15 +3690,54 @@ js_Interpret(JSContext *cx, jsval *result)
         STORE_NUMBER(cx, -1, d);                                              \
     JS_END_MACRO
 
+#else /* XSS */
+
+#define BINARY_OP(OP)                                                         \
+    JS_BEGIN_MACRO                                                            \
+		/* check if the stack is tainted or the scope */					  \
+		XSS_TAINTOUTPUT_ON_STACK;											  \
+		XSS_TAINTOUTPUT_ON_SCOPE;											  \
+		XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));							  \
+		XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));							  \
+		XSS_CALC_TAINTOUTPUT;												  \
+        FETCH_NUMBER(cx, -1, d2);                                             \
+        FETCH_NUMBER(cx, -2, d);                                              \
+        d = d OP d2;                                                          \
+        sp--;                                                                 \
+        STORE_NUMBER(cx, -1, d);                                              \
+    JS_END_MACRO
+
+#endif /* XSS */
+
+		  /*
+		   * subtracts one operand from another
+		   * e.g. 10 - a;
+		   */
           case JSOP_SUB:
             BINARY_OP(-);
             break;
 
+		  /*
+		   * Multiplies two operands
+		   * e.g. 10 * a;
+		   */
           case JSOP_MUL:
             BINARY_OP(*);
             break;
 
+		  /*
+		   * Divides an operand through another
+		   * e.g. a / b;
+		   */
           case JSOP_DIV:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             FETCH_NUMBER(cx, -1, d2);
             FETCH_NUMBER(cx, -2, d);
             sp--;
@@ -2479,7 +3761,19 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+		  /*
+		   * math. modula-operation
+		   * e.g. 10 % a;
+		   */
           case JSOP_MOD:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             FETCH_NUMBER(cx, -1, d2);
             FETCH_NUMBER(cx, -2, d);
             sp--;
@@ -2495,19 +3789,56 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+		  /*
+		   * Boolean-not
+		   * e.g. var x = true; print(!x);
+		   */
           case JSOP_NOT:
-            POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
+			POP_BOOLEAN(cx, rval, cond);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(BOOLEAN_TO_JSVAL(!cond));
             break;
 
+		  /*
+		   * bitwise not. e.g. a = ~a;
+		   */
           case JSOP_BITNOT:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             FETCH_INT(cx, -1, i);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             d = (jsdouble) ~i;
             STORE_NUMBER(cx, -1, d);
             break;
 
+		  /*
+		   * Negates a number
+		   * e.g. var x = -y;
+		   */
           case JSOP_NEG:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             FETCH_NUMBER(cx, -1, d);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+#endif /* XSS */
 #ifdef HPUX
             /*
              * Negation of a zero doesn't produce a negative
@@ -2518,15 +3849,40 @@ js_Interpret(JSContext *cx, jsval *result)
 #else
             d = -d;
 #endif
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             STORE_NUMBER(cx, -1, d);
             break;
 
+		  /*
+		   * Convert to number for unary +
+		   * e.g. var a = +x;
+		   */
           case JSOP_POS:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             FETCH_NUMBER(cx, -1, d);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             STORE_NUMBER(cx, -1, d);
             break;
 
+		  /*
+		   * creates a new object
+		   * e.g. x = new Object();
+		   */
           case JSOP_NEW:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             /* Get immediate argc and find the constructor function. */
             argc = GET_ARGC(pc);
 
@@ -2534,6 +3890,10 @@ js_Interpret(JSContext *cx, jsval *result)
           do_new:
 #endif
             vp = sp - (2 + argc);
+#ifdef XSS /* XSS */
+			/* is the function tainted? */
+			XSS_TAINTOUTPUT_ON_VALUE(*vp);
+#endif /* XSS */
             JS_ASSERT(vp >= fp->spbase);
 
             fun = NULL;
@@ -2582,7 +3942,19 @@ js_Interpret(JSContext *cx, jsval *result)
             /* Now we have an object with a constructor method; call it. */
             vp[1] = OBJECT_TO_JSVAL(obj);
             SAVE_SP(fp);
+#ifdef XSS
+			/* save the current taint-state of the scope and 
+			   taint the scope temporary if a variable is tainted. */
+			taintoutput_temp = XSS_SCOPE_ISTAINTED(cx->fp->scope_current);
+			XSS_CALC_TAINTOUTPUT;
+			if (taintoutput == XSS_TAINTED) {
+				cx->fp->scope_current->istainted = XSS_TAINTED;
+			}
+#endif /* XSS */
             ok = js_Invoke(cx, argc, JSINVOKE_CONSTRUCT);
+#ifdef XSS			
+			cx->fp->scope_current->istainted = taintoutput_temp;
+#endif /* XSS */
             RESTORE_SP(fp);
             LOAD_BRANCH_CALLBACK(cx);
             LOAD_INTERRUPT_HANDLER(rt);
@@ -2608,11 +3980,26 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+#endif /* XSS */
             obj = JSVAL_TO_OBJECT(rval);
             JS_RUNTIME_METER(rt, constructs);
             break;
 
+		  /*
+		   * Delete a variable-name
+		   * e.g. var x = 1; delete(x);
+		   */
           case JSOP_DELNAME:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
 
@@ -2623,45 +4010,167 @@ js_Interpret(JSContext *cx, jsval *result)
 
             /* ECMA says to return true if name is undefined or inherited. */
             rval = JSVAL_TRUE;
+#ifdef XSS /* XSS */
+			/* save rval */
+			xss_jsval2 = rval;
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             if (prop) {
+#ifdef XSS /* XSS */
+				OBJ_GET_PROPERTY(cx,obj,id, &rval);
+				XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
                 OBJ_DROP_PROPERTY(cx, obj2, prop);
                 ok = OBJ_DELETE_PROPERTY(cx, obj, id, &rval);
+#ifdef XSS /* XSS */
+				xss_jsval2 = rval;
+#endif /* XSS */
                 if (!ok)
                     goto out;
+#ifdef XSS /* XSS */
+				/* taint the deleted name */
+				OBJ_GET_PROPERTY(cx,obj,id, &rval);
+				XSS_CALC_TAINTOUTPUT;
+				XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+				if (taintoutput == XSS_TAINTED) {
+					/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+					XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+					OBJ_SET_PROPERTY(cx,obj,id, &rval);
+				}
+#endif /* XSS */
             }
+
+#ifdef XSS /* XSS */
+			/* restore rval */
+			rval = xss_jsval2;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 
+		  /*
+		   * Deletes a Object-property
+		   * e.g. var x = { myprop : 1 }; delete(x.myprop);
+		   */
           case JSOP_DELPROP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
+#ifdef XSS /* XSS */
+            PROPERTY_OP(-1, CACHED_GET(OBJ_GET_PROPERTY(cx, obj, id, &rval)));
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             PROPERTY_OP(-1, ok = OBJ_DELETE_PROPERTY(cx, obj, id, &rval));
+#ifdef XSS /* XSS */
+			/* save rval */
+			xss_jsval2 = rval;
+            PROPERTY_OP(-1, CACHED_GET(OBJ_GET_PROPERTY(cx, obj, id, &rval)));
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			if (taintoutput == XSS_TAINTED) {
+				/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+	            PROPERTY_OP(-1, CACHED_SET(OBJ_SET_PROPERTY(cx, obj, id, &rval)));
+			}
+			/* restore rval */
+			rval = xss_jsval2;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Deletes an element of an array
+		   * e.g. delete x[0];
+		   */
           case JSOP_DELELEM:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			ELEMENT_OP(-1, OBJ_GET_PROPERTY(cx,obj,id, &rval));
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             ELEMENT_OP(-1, ok = OBJ_DELETE_PROPERTY(cx, obj, id, &rval));
+#ifdef XSS /* XSS */
+			/* save rval */
+			xss_jsval2 = rval;
+			/* taint the deleted value */
+			ELEMENT_OP(-1, OBJ_GET_PROPERTY(cx,obj,id, &rval));
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			if (taintoutput == XSS_TAINTED) {
+				/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+				ELEMENT_OP(-1, OBJ_SET_PROPERTY(cx,obj,id, &rval));
+			}
+			/* restore rval */
+			rval = xss_jsval2;
+			/* taint the returnvalue if necessary */
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             sp--;
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Checks the type of the operand
+		   * e.g. print(typeof(x));
+		   */
           case JSOP_TYPEOF:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = POP_OPND();
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             type = JS_TypeOfValue(cx, rval);
             atom = rt->atomState.typeAtoms[type];
             str  = ATOM_TO_STRING(atom);
+#ifdef XSS /* XSS */
+			/* type string is never tainted */
+			XSS_JSVAL_SET_ISTAINTED(XSS_NOT_TAINTED, STRING_TO_JSVAL(str));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(STRING_TO_JSVAL(str));
             break;
 
+		  /*
+		   * pushes void on the stack
+		   * e.g. new Array(void 0);
+		   */
           case JSOP_VOID:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             (void) POP_OPND();
             PUSH_OPND(JSVAL_VOID);
             break;
 
+		  /*
+		   * Incements/decrements a name
+		   * e.g. var x = 1; ++x;
+		   */
           case JSOP_INCNAME:
           case JSOP_DECNAME:
           case JSOP_NAMEINC:
           case JSOP_NAMEDEC:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
+
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
 
@@ -2676,19 +4185,40 @@ js_Interpret(JSContext *cx, jsval *result)
             lval = OBJECT_TO_JSVAL(obj);
             goto do_incop;
 
+		  /*
+		   * Increments/Decrements properties.
+		   * e.g:
+		   * function X() { this.x = 5; }
+		   * var y = new X();
+		   * y.x++;
+		   */
           case JSOP_INCPROP:
           case JSOP_DECPROP:
           case JSOP_PROPINC:
           case JSOP_PROPDEC:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
             lval = POP_OPND();
             goto do_incop;
 
+		  /*
+		   * Increments/Decrements the element of an array.
+		   * e.g. x[0]++;
+		   */
           case JSOP_INCELEM:
           case JSOP_DECELEM:
           case JSOP_ELEMINC:
           case JSOP_ELEMDEC:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             POP_ELEMENT_ID(id);
             lval = POP_OPND();
 
@@ -2701,6 +4231,13 @@ js_Interpret(JSContext *cx, jsval *result)
             if (!ok)
                 goto out;
 
+#ifdef XSS /* XSS */
+			/* the array */
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+			/* the value */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             /* The expression result goes in rtmp, the updated value in rval. */
             if (JSVAL_IS_INT(rval) &&
                 rval != INT_TO_JSVAL(JSVAL_INT_MIN) &&
@@ -2719,6 +4256,7 @@ js_Interpret(JSContext *cx, jsval *result)
  * yet converted.  As above, the expression result goes in rtmp, the updated
  * value goes in rval.
  */
+#ifndef XSS /* original */
 #define NONINT_INCREMENT_OP()                                                 \
     JS_BEGIN_MACRO                                                            \
         VALUE_TO_NUMBER(cx, rval, d);                                         \
@@ -2740,12 +4278,50 @@ js_Interpret(JSContext *cx, jsval *result)
             goto out;                                                         \
     JS_END_MACRO
 
+#else /* XSS */
+#define NONINT_INCREMENT_OP()                                                 \
+    JS_BEGIN_MACRO                                                            \
+        VALUE_TO_NUMBER(cx, rval, d);                                         \
+		/* check if the value or scope is tainted */						  \
+		XSS_TAINTOUTPUT_ON_VALUE(rval);										  \
+        if (cs->format & JOF_POST) {                                          \
+            rtmp = rval;                                                      \
+			XSS_JSVAL_GET_TAINT(rtmp,xss_taint);							  \
+			/* adjust origtype */											  \
+			if (!JSVAL_IS_NUMBER(rtmp) ||									  \
+				!XSS_TAINTSTRUCTURE_IS_NUMBER(xss_taint)) {					  \
+                ok = js_NewNumberValue(cx, d, &rtmp);                         \
+				XSS_JSVAL_GET_TAINT(rtmp,xss_taint);						  \
+				XSS_TAINTSTRUCTURE_SET_ORIGTYPE(xss_taint,JSVAL_DOUBLE);	  \
+                if (!ok)                                                      \
+                    goto out;                                                 \
+            }                                                                 \
+            (cs->format & JOF_INC) ? d++ : d--;                               \
+            ok = js_NewNumberValue(cx, d, &rval);                             \
+        } else {                                                              \
+            (cs->format & JOF_INC) ? ++d : --d;                               \
+            ok = js_NewNumberValue(cx, d, &rval);                             \
+            rtmp = rval;                                                      \
+        }                                                                     \
+        if (!ok)                                                              \
+            goto out;                                                         \
+    JS_END_MACRO
+#endif /* XSS */
+
                 NONINT_INCREMENT_OP();
             }
 
+#ifdef XSS /* XSS */
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
             CACHED_SET(OBJ_SET_PROPERTY(cx, obj, id, &rval));
             if (!ok)
                 goto out;
+
             PUSH_OPND(rtmp);
             break;
 
@@ -2754,6 +4330,8 @@ js_Interpret(JSContext *cx, jsval *result)
  * it must break from the switch case that calls it, not from the do...while(0)
  * loop created by the JS_BEGIN/END_MACRO brackets.
  */
+#ifndef XSS /* original */
+
 #define FAST_INCREMENT_OP(SLOT,COUNT,BASE,PRE,OP,MINMAX)                      \
     slot = (uintN)SLOT;                                                       \
     JS_ASSERT(slot < fp->fun->COUNT);                                         \
@@ -2769,21 +4347,81 @@ js_Interpret(JSContext *cx, jsval *result)
     }                                                                         \
     goto do_nonint_fast_incop;
 
+#else /* XSS */
+
+#define FAST_INCREMENT_OP(SLOT,COUNT,BASE,PRE,OP,MINMAX)                      \
+    slot = (uintN)SLOT;														  \
+    JS_ASSERT(slot < fp->fun->COUNT);										  \
+    vp = fp->BASE + slot;													  \
+    xss_jsval = *vp;														  \
+	/* check if the stack is tainted or the scope */						  \
+	XSS_TAINTOUTPUT_ON_STACK;												  \
+	XSS_TAINTOUTPUT_ON_SCOPE;												  \
+	XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);									  \
+	XSS_TO_ORIG_JSVAL(xss_jsval, rval);										  \
+    if (JSVAL_IS_INT(rval) &&												  \
+        rval != INT_TO_JSVAL(JSVAL_INT_##MINMAX)) {							  \
+        PRE = rval;															  \
+        rval OP 2;															  \
+		XSS_CALC_TAINTOUTPUT;												  \
+		XSS_TAINT_JSVAL_ON_OUTPUT(rval);									  \
+        *vp = rval;													          \
+		XSS_TAINT_JSVAL_ON_OUTPUT(PRE);										  \
+        PUSH_OPND(PRE);														  \
+        break;																  \
+    }																		  \
+    goto do_nonint_fast_incop;
+
+#endif /* XSS */
+
+		  /*
+		   * preincrease of an argument.
+		   * e.g. function (a) { b = ++a; }
+		   */
           case JSOP_INCARG:
             FAST_INCREMENT_OP(GET_ARGNO(pc), nargs, argv, rval, +=, MAX);
+		  /*
+		   * predecrease of an argument.
+		   * e.g. function (a) { b = --a; }
+		   */
           case JSOP_DECARG:
             FAST_INCREMENT_OP(GET_ARGNO(pc), nargs, argv, rval, -=, MIN);
+		  /*
+		   * postincrease of an argument.
+		   * e.g. function (a) { b = a++; }
+		   */
           case JSOP_ARGINC:
             FAST_INCREMENT_OP(GET_ARGNO(pc), nargs, argv, rtmp, +=, MAX);
+		  /*
+		   * postdecrease of an argument.
+		   * e.g. function (a) { b = a--; }
+		   */
           case JSOP_ARGDEC:
             FAST_INCREMENT_OP(GET_ARGNO(pc), nargs, argv, rtmp, -=, MIN);
 
+		  /*
+		   * preincrease of a variable in a function
+		   * e.g. function () { var a; b = ++a; }
+		   */
           case JSOP_INCVAR:
             FAST_INCREMENT_OP(GET_VARNO(pc), nvars, vars, rval, +=, MAX);
+
+		  /*
+		   * predecrease of a variable in a function
+		   * e.g. function () { var a; b = --a; }
+		   */
           case JSOP_DECVAR:
             FAST_INCREMENT_OP(GET_VARNO(pc), nvars, vars, rval, -=, MIN);
+		  /*
+		   * postincrease of a variable in a function
+		   * e.g. function () { var a; b = a++; }
+		   */
           case JSOP_VARINC:
             FAST_INCREMENT_OP(GET_VARNO(pc), nvars, vars, rtmp, +=, MAX);
+		  /*
+		   * postdecrease of a variable in a function
+		   * e.g. function () { var a; b = a--; }
+		   */
           case JSOP_VARDEC:
             FAST_INCREMENT_OP(GET_VARNO(pc), nvars, vars, rtmp, -=, MIN);
 
@@ -2795,46 +4433,182 @@ js_Interpret(JSContext *cx, jsval *result)
             PUSH_OPND(rtmp);
             break;
 
+		  /*
+		   * Gets the property of an object.
+		   * e.g. var obj = { 'x' : 3}; print(obj.x);
+		   */
           case JSOP_GETPROP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+#endif /* XSS */
             /* Get an immediate atom naming the property. */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
             PROPERTY_OP(-1, CACHED_GET(OBJ_GET_PROPERTY(cx, obj, id, &rval)));
-            STORE_OPND(-1, rval);
+#ifdef XSS /* XSS */
+#ifndef XSS_SHELL
+#ifdef XSS_DEBUG
+			/* taint only http-scripts*/
+			do {
+				JSScript *script = fp->script;
+				if (script && script->filename) {
+					if (strstr(script->filename,"http:") != NULL) {
+						xssSetDoLog(XSS_DO_LOG);
+						fprintf(stderr, "script = %s\n", script->filename);
+					}
+				}
+			} while (0); 
+#endif /* XSS_DEBUG */
+#endif /* XSS_SHELL */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
+			STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Sets an object-property
+		   * e.g. o.x = 3;
+		   */
           case JSOP_SETPROP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             /* Pop the right-hand side into rval for OBJ_SET_PROPERTY. */
             rval = FETCH_OPND(-1);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+#endif /* XSS */
 
             /* Get an immediate atom naming the property. */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
+#ifdef XSS_DEBUG
+			/* taint rval, if the var is called "evil". e.g. var evil = ... */
+			str = js_ValueToSource(cx, ATOM_KEY(atom));
+			if (!XSS_JSVAL_HAS_TAINTSTRUCTURE(rval)) {
+				XSS_ADD_TAINTSTRUCTURE(rval);
+			}
+			XSS_TAINT_EVILSTR(str, rval);
+
+#endif /* XSS_DEBUG */
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
             PROPERTY_OP(-2, CACHED_SET(OBJ_SET_PROPERTY(cx, obj, id, &rval)));
+#ifdef XSS /* XSS */
+			XSS_TAINT_JSVAL_ON_OUTPUT(FETCH_OPND(-2));
+#endif /* XSS */
             sp--;
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Gets an array-element
+		   * e.g. x[0]
+		   */
           case JSOP_GETELEM:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+#endif /* XSS */
             ELEMENT_OP(-1, CACHED_GET(OBJ_GET_PROPERTY(cx, obj, id, &rval)));
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             sp--;
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * sets an array-element
+		   * e.g. x[0] = 3;
+		   */
           case JSOP_SETELEM:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
+#ifdef XSS /* XSS */
+			/* check rval */
+			XSS_TAINTOUTPUT_ON_VALUE(rval); 
+			/* check index */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-2));
+			/* check array */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-3));
+			XSS_CALC_TAINTOUTPUT;
+			/* taint the new value for the element */
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
             ELEMENT_OP(-2, CACHED_SET(OBJ_SET_PROPERTY(cx, obj, id, &rval)));
+#ifdef XSS /* XSS */
+			/* taint the array if necessary */
+			XSS_TAINT_JSVAL_ON_OUTPUT(FETCH_OPND(-3));
+#endif /* XSS */
             sp -= 2;
             STORE_OPND(-1, rval);
             break;
 
+		  /*
+		   * Used for JSOP_FORELEM
+		   * e.g.:
+		   * var dut = { 'x' : evil };
+		   * var ob = [evil];
+		   * for (ob[0] in dut) {
+		   *   print(dut[ob[0]]);
+		   * }
+		   */
           case JSOP_ENUMELEM:
             /* Funky: the value to set is under the [obj, id] pair. */
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			/* check index */
+            lval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+#endif /* XSS */
             FETCH_ELEMENT_ID(-1, id);
             lval = FETCH_OPND(-2);
             VALUE_TO_OBJECT(cx, lval, obj);
+#ifdef XSS /* XSS */
+			/* check array */
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+            ok = OBJ_GET_PROPERTY(cx, obj, id, &rval);
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             rval = FETCH_OPND(-3);
             SAVE_SP(fp);
+#ifdef XSS /* XSS */
+			/* check property of object */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
             ok = OBJ_SET_PROPERTY(cx, obj, id, &rval);
             if (!ok)
                 goto out;
@@ -2851,11 +4625,24 @@ js_Interpret(JSContext *cx, jsval *result)
  */
 #define LAZY_ARGS_THISP ((JSObject *) 1)
 
+		  /*
+		   * pushes the object on the stack
+		   * e.g. print(x);
+		   */
           case JSOP_PUSHOBJ:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             if (obj == LAZY_ARGS_THISP && !(obj = js_GetArgsObject(cx, fp))) {
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(OBJECT_TO_JSVAL(obj));
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(OBJECT_TO_JSVAL(obj));
             break;
 
@@ -2864,6 +4651,13 @@ js_Interpret(JSContext *cx, jsval *result)
             argc = GET_ARGC(pc);
             vp = sp - (argc + 2);
             lval = *vp;
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
+
             SAVE_SP(fp);
 
             if (JSVAL_IS_FUNCTION(cx, lval) &&
@@ -2924,6 +4718,23 @@ js_Interpret(JSContext *cx, jsval *result)
                 newifp->frame.scopeChain = OBJ_GET_PARENT(cx, obj);
                 newifp->mark = newmark;
 
+#ifdef XSS /* XSS */
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+				if (xssGetDoLog() == XSS_DO_LOG) {
+					XSS_PRINTDEBUG_STR("before init fp for call\n");
+				}
+#endif /* XSS_DEBUG */
+				/* initialize the xss-scope */
+				XSS_SCOPE_INIT_ROOT(newifp->frame, XSS_NOT_TAINTED, XSS_FALSE);
+				/* set the bounds of the scope and if it should be tainted (scope or function tainted) */
+				XSS_SCOPE_SET(NULL, newifp->frame.scope_root, taintoutput, script->code, script->code + script->length, JSOP_CALL);
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+				if (xssGetDoLog() == XSS_DO_LOG) {
+					XSS_PRINT_SCOPE(tracefp, script, newifp->frame.scope_root);
+				}
+#endif /* XSS_DEBUG */
+#endif /* XSS */
+
                 /* Compute the 'this' parameter now that argv is set. */
                 ok = ComputeThis(cx, JSVAL_TO_OBJECT(vp[1]), &newifp->frame);
                 if (!ok) {
@@ -2961,7 +4772,23 @@ js_Interpret(JSContext *cx, jsval *result)
                 endpc = pc + script->length;
                 inlineCallCount++;
                 JS_RUNTIME_METER(rt, inlineCalls);
-                continue;
+
+#ifdef XSS
+#ifdef XSS_DEBUG
+				if (xssGetDoLog() == XSS_DO_LOG) {
+
+					XSS_PRINTDEBUG_STR("---------------------------------------------------------------------\n");
+					XSS_PRINTDEBUG_STR("start of sourcecode\n");
+
+					js_Disassemble(cx,script,JS_TRUE, stderr);
+
+					XSS_PRINTDEBUG_STR("end of sourcecode\n");
+					XSS_PRINTDEBUG_STR("---------------------------------------------------------------------\n");
+				}
+#endif /* XSS_DEBUG */
+#endif /* XSS */
+
+				continue;
 
               bad_inline_call:
                 script = fp->script;
@@ -2969,7 +4796,25 @@ js_Interpret(JSContext *cx, jsval *result)
                 goto out;
             }
 
+#ifdef XSS
+			/* save the current taint-state of the scope and 
+			   taint the scope temporary if a variable is tainted. */
+			taintoutput_temp = XSS_SCOPE_ISTAINTED(cx->fp->scope_current);
+			if (taintoutput == XSS_TAINTED) {
+				cx->fp->scope_current->istainted = XSS_TAINTED;
+			}
+			if (op == JSOP_EVAL) {
+				taint_retval_old = cx->fp->taint_retval;
+				cx->fp->taint_retval = XSS_TRUE;
+			}
+#endif /* XSS */
             ok = js_Invoke(cx, argc, 0);
+#ifdef XSS			
+			cx->fp->scope_current->istainted = taintoutput_temp;
+			if (op == JSOP_EVAL) {
+				cx->fp->taint_retval = taint_retval_old;
+			}
+#endif /* XSS */
             RESTORE_SP(fp);
             LOAD_BRANCH_CALLBACK(cx);
             LOAD_INTERRUPT_HANDLER(rt);
@@ -3000,10 +4845,22 @@ js_Interpret(JSContext *cx, jsval *result)
             }
 #endif
             obj = NULL;
+#ifdef XSS /* XSS */
+			XSS_TAINT_JSVAL_ON_OUTPUT(FETCH_OPND(-1));
+#endif /* XSS */
             break;
 
 #if JS_HAS_LVALUE_RETURN
+		  /*
+		   * Used if a lvalue-assignment is possible (instead of a call)
+		   * e.g. it.item('funny') = 3;
+		   */
           case JSOP_SETCALL:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             argc = GET_ARGC(pc);
             SAVE_SP(fp);
             ok = js_Invoke(cx, argc, 0);
@@ -3018,13 +4875,27 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(cx->rval2);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(cx->rval2);
+#endif /* XSS */
             PUSH_OPND(cx->rval2);
             cx->rval2set = JS_FALSE;
             obj = NULL;
             break;
 #endif
 
+		  /*
+		   * Gets a variable by name
+		   * e.g. var x = 1;
+		   */
           case JSOP_NAME:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
 
@@ -3063,7 +4934,16 @@ js_Interpret(JSContext *cx, jsval *result)
                    ? LOCKED_OBJ_GET_SLOT(obj2, slot)
                    : JSVAL_VOID;
             JS_UNLOCK_OBJ(cx, obj2);
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             ok = SPROP_GET(cx, sprop, obj, obj2, &rval);
+#ifdef XSS /* XSS */			
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             JS_LOCK_OBJ(cx, obj2);
             if (!ok) {
                 OBJ_DROP_PROPERTY(cx, obj2, prop);
@@ -3073,24 +4953,118 @@ js_Interpret(JSContext *cx, jsval *result)
                 LOCKED_OBJ_SET_SLOT(obj2, slot, rval);
             OBJ_DROP_PROPERTY(cx, obj2, prop);
             PUSH_OPND(rval);
+#ifdef XSS /* XSS */			
+#ifdef XSS_DEBUG /* XSS_DEBUG */			
+			if (xssGetDoLog() == XSS_DO_LOG) {
+				if (XSS_JSVAL_IS_TAINTED(rval)) {
+					fprintf(stderr, "taint value of %s (%d)= ", js_AtomToPrintableString(cx, atom), rval);
+					XSS_JSVAL_GET_TAINT(rval,xss_taint);
+					if (xss_taint != 0) {
+						fprintf(stderr,"t: %d %d", xss_taint->istainted, xss_taint->type);
+					} else {
+						fprintf(stderr,"t: null!");
+					}
+					fprintf(stderr, "\n");
+				}
+			}
+#endif /* XSS_DEBUG */			
+#endif /* XSS */			
             break;
 
+		  /*
+		   * puts a integer-constant on the stack
+		   * e.g. var x = 3;
+		   */
           case JSOP_UINT16:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             i = (jsint) GET_ATOM_INDEX(pc);
             rval = INT_TO_JSVAL(i);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             obj = NULL;
             break;
 
+		  /*
+		   * puts a number on the stack
+		   * e.g. var x = 123.4;
+		   */
           case JSOP_NUMBER:
+		  /*
+		   * puts a string on the stack
+		   * e.g. var x = "test";
+		   */
           case JSOP_STRING:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
+#ifdef XSS
+			XSS_CALC_TAINTOUTPUT;
+			if (taintoutput == XSS_TAINTED) {
+				if (JSVAL_IS_STRING(ATOM_KEY(atom))) {
+					JS_BEGIN_MACRO
+						JSString *atomstr, *str;
+						atomstr = JSVAL_TO_STRING(ATOM_KEY(atom));
+						str = js_NewStringCopyN(cx, JSSTRING_CHARS(atomstr), JSSTRING_LENGTH(atomstr), 0);
+						if (!str) {
+							JS_free(cx, JSSTRING_CHARS(atomstr));
+							PUSH_OPND(ATOM_KEY(atom));
+						} else {
+							PUSH_OPND(STRING_TO_JSVAL(str));
+						}
+					JS_END_MACRO;
+				} else if (JSVAL_IS_INT(ATOM_KEY(atom))) {
+					JS_BEGIN_MACRO
+						jsdouble d;
+						jsval v_;
+					    
+						d = (jsdouble)JSVAL_TO_INT(ATOM_KEY(atom));
+						ok = js_NewDoubleValue(cx, d, &v_);
+						XSS_JSVAL_SET_ORIGTYPE(v_, JSVAL_INT);
+						PUSH_OPND(v_);
+					JS_END_MACRO;
+				} else if (JSVAL_IS_DOUBLE(ATOM_KEY(atom))) {
+					JS_BEGIN_MACRO
+						jsdouble d;
+						jsval v_;
+					    
+						d = *JSVAL_TO_DOUBLE(ATOM_KEY(atom));
+						ok = js_NewDoubleValue(cx, d, &v_);
+						XSS_JSVAL_SET_ORIGTYPE(v_, JSVAL_DOUBLE);
+						PUSH_OPND(v_);
+					JS_END_MACRO;
+				} else {
+					PUSH_OPND(ATOM_KEY(atom));
+				}
+			} else {
+				PUSH_OPND(ATOM_KEY(atom));
+			}
+#else /* original */
             PUSH_OPND(ATOM_KEY(atom));
+#endif /* XSS */
             obj = NULL;
             break;
 
+		  /*
+		   * creates a new object from a literal (only used fuer regexp)
+		   * e.g. /x+/
+		   */
           case JSOP_OBJECT:
           {
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
 #if 0
             jsatomid atomIndex;
             JSAtomMap *atomMap;
@@ -3198,45 +5172,135 @@ js_Interpret(JSContext *cx, jsval *result)
             JS_ASSERT(ATOM_IS_OBJECT(atom));
 #endif
             rval = ATOM_KEY(atom);
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             obj = NULL;
             break;
           }
 
+		  /*
+		   * constant for the number 0
+		   * e.g. var x = 0;
+		   */
           case JSOP_ZERO:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_ZERO);
             obj = NULL;
             break;
 
+		  /*
+		   * constant for the number 1
+		   * e.g. var x = 1;
+		   */
           case JSOP_ONE:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_ONE);
             obj = NULL;
             break;
 
+		  /*
+		   * constant for null
+		   * e.g. var x = null;
+		   */
           case JSOP_NULL:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_NULL);
             obj = NULL;
             break;
 
+		  /*
+		   * puts the current object on the stack
+		   * e.g. Test() { return this;}
+		   */
           case JSOP_THIS:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = OBJECT_TO_JSVAL(fp->thisp);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(OBJECT_TO_JSVAL(fp->thisp));
             obj = NULL;
             break;
 
+		  /*
+		   * Constant for the boolean-value false
+		   * e.g. var x = false;
+		   */
           case JSOP_FALSE:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_FALSE);
             obj = NULL;
             break;
 
+		  /*
+		   * Constant for the boolean-value true
+		   * e.g. var x = true;
+		   */
           case JSOP_TRUE:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(JSVAL_TRUE);
             obj = NULL;
             break;
 
 #if JS_HAS_SWITCH_STATEMENT
+		  /*
+		   * calculates the switch-target
+		   * e.g. switch(x) { case 1: x = 2; } 
+		   */
           case JSOP_TABLESWITCH:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the switch-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole switch-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             pc2 = pc;
             len = GET_JUMP_OFFSET(pc2);
+
 
             /*
              * ECMAv2 forbids conversion of discriminant, so we will skip to
@@ -3246,9 +5310,16 @@ js_Interpret(JSContext *cx, jsval *result)
             if (cx->version == JSVERSION_DEFAULT ||
                 cx->version >= JSVERSION_1_4) {
                 rval = POP_OPND();
+#ifndef XSS /* original */
                 if (!JSVAL_IS_INT(rval))
                     break;
                 i = JSVAL_TO_INT(rval);
+#else /* XSS: handle the types */
+				XSS_TO_ORIG_JSVAL(rval, xss_jsval);
+                if (!JSVAL_IS_INT(xss_jsval))
+                    break;
+                i = JSVAL_TO_INT(xss_jsval);
+#endif /* XSS */
             } else {
                 FETCH_INT(cx, -1, i);
                 sp--;
@@ -3268,10 +5339,37 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+		  /*
+		   * switch-statement that needs a lookup
+		   * e.g. switch ( x ) { case "z": print("z"); }
+		   */
           case JSOP_LOOKUPSWITCH:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the switch-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole switch-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             lval = POP_OPND();
             pc2 = pc;
             len = GET_JUMP_OFFSET(pc2);
+
+#ifdef XSS 
+			/* convert the xss-lval back to a normal lval */
+			XSS_TO_ORIG_JSVAL(lval,lval);
+#endif /* XSS */
 
             if (!JSVAL_IS_NUMBER(lval) &&
                 !JSVAL_IS_STRING(lval) &&
@@ -3317,7 +5415,29 @@ js_Interpret(JSContext *cx, jsval *result)
 #undef SEARCH_PAIRS
             break;
 
+		  /*
+		   * calculates the switch-target
+		   * e.g. switch(x) { case 1: x = 2; } 
+		   */
           case JSOP_TABLESWITCHX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the switch-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole switch-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             pc2 = pc;
             len = GET_JUMPX_OFFSET(pc2);
 
@@ -3329,15 +5449,22 @@ js_Interpret(JSContext *cx, jsval *result)
             if (cx->version == JSVERSION_DEFAULT ||
                 cx->version >= JSVERSION_1_4) {
                 rval = POP_OPND();
+#ifndef XSS /* original */
                 if (!JSVAL_IS_INT(rval))
                     break;
                 i = JSVAL_TO_INT(rval);
+#else /* XSS: handle the types */
+				XSS_TO_ORIG_JSVAL(rval, xss_jsval);
+                if (!JSVAL_IS_INT(xss_jsval))
+                    break;
+                i = JSVAL_TO_INT(xss_jsval);
+#endif /* XSS */
             } else {
                 FETCH_INT(cx, -1, i);
                 sp--;
             }
 
-            pc2 += JUMPX_OFFSET_LEN;
+			pc2 += JUMPX_OFFSET_LEN;
             low = GET_JUMP_OFFSET(pc2);
             pc2 += JUMP_OFFSET_LEN;
             high = GET_JUMP_OFFSET(pc2);
@@ -3351,10 +5478,37 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+		  /*
+		   * (extended) switch-statement that needs a lookup
+		   * e.g. switch ( x ) { case "z": print("z"); }
+		   */
           case JSOP_LOOKUPSWITCHX:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the switch-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole switch-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             lval = POP_OPND();
             pc2 = pc;
             len = GET_JUMPX_OFFSET(pc2);
+
+#ifdef XSS 
+			/* convert the xss-lval back to a normal lval */
+			XSS_TO_ORIG_JSVAL(lval,lval);
+#endif /* XSS */
 
             if (!JSVAL_IS_NUMBER(lval) &&
                 !JSVAL_IS_STRING(lval) &&
@@ -3400,13 +5554,44 @@ js_Interpret(JSContext *cx, jsval *result)
 #undef SEARCH_EXTENDED_PAIRS
             break;
 
+		  /*
+		   * Switch on a condition
+		   * switch(1) { case (x == 1) : }
+		   */
           case JSOP_CONDSWITCH:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			xss_jsval = FETCH_OPND(-1);
+			XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+			XSS_CALC_TAINTOUTPUT;
+
+			JS_BEGIN_MACRO			  
+			  jssrcnote *sn;
+			  ptrdiff_t len;
+			  /* get the length of the switch-statement */
+              sn = js_GetSrcNote(fp->script, pc);
+              len = js_GetSrcNoteOffset(sn, 0);
+			  /* and create a new scope over the whole switch-statement */
+			  XSS_NEW_SCOPE(fp->scope_current, pc, pc + len, taintoutput);
+		    JS_END_MACRO;
+#endif /* XSS */
             break;
 
 #endif /* JS_HAS_SWITCH_STATEMENT */
 
 #if JS_HAS_EXPORT_IMPORT
+		  /*
+		   * Used to export all properties/functions
+		   * e.g. export *;
+		   */
           case JSOP_EXPORTALL:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             obj = fp->varobj;
             ida = JS_Enumerate(cx, obj);
             if (!ida) {
@@ -3414,6 +5599,21 @@ js_Interpret(JSContext *cx, jsval *result)
             } else {
                 for (i = 0, j = ida->length; i < j; i++) {
                     id = ida->vector[i];
+#ifdef XSS /* XSS */
+					/* get the jsval */
+	                ok = OBJ_GET_PROPERTY(cx, obj, id, &xss_jsval);
+					if (ok) {
+						XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+						XSS_CALC_TAINTOUTPUT;
+						XSS_TAINT_JSVAL_ON_OUTPUT(xss_jsval);
+						/* if necessary, taint the jsval  */
+						if (taintoutput == XSS_TAINTED) {
+							/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+							XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+							ok = OBJ_SET_PROPERTY(cx, obj, id, &xss_jsval);
+						}
+					}
+#endif /* XSS */
                     ok = OBJ_LOOKUP_PROPERTY(cx, obj, id, &obj2, &prop);
                     if (!ok)
                         break;
@@ -3432,10 +5632,33 @@ js_Interpret(JSContext *cx, jsval *result)
             }
             break;
 
+		  /*
+		   * Used to export variable.
+		   * e.g. var x = 1; export x;
+		   */
           case JSOP_EXPORTNAME:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
             obj  = fp->varobj;
+#ifdef XSS /* XSS */
+			/* if necessary, taint the jsval */
+	        ok = OBJ_GET_PROPERTY(cx, obj, id, &xss_jsval);
+			if (ok) {
+				XSS_TAINTOUTPUT_ON_VALUE(xss_jsval);
+				XSS_CALC_TAINTOUTPUT;
+				XSS_TAINT_JSVAL_ON_OUTPUT(xss_jsval);
+				if (taintoutput == XSS_TAINTED) {
+					/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+					XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+					ok = OBJ_SET_PROPERTY(cx, obj, id, &xss_jsval);
+				}
+			}
+#endif /* XSS */
             ok = OBJ_LOOKUP_PROPERTY(cx, obj, id, &obj2, &prop);
             if (!ok)
                 goto out;
@@ -3454,13 +5677,47 @@ js_Interpret(JSContext *cx, jsval *result)
                 goto out;
             break;
 
+		  /*
+		   * Imports all variables.
+		   * e.g. import *;
+		   */
           case JSOP_IMPORTALL:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			/* check if the imported variables have to be tained... */
+			XSS_TAINTOUTPUT_ON_VALUE(JSVAL_VOID);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* create a new scope if necessary */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc, XSS_TAINTED);
+			}
+#endif /* XSS */
             id = (jsid)JSVAL_VOID;
             PROPERTY_OP(-1, ok = ImportProperty(cx, obj, id));
             sp--;
             break;
 
+		  /*
+		   * Imports a property of an object
+		   * e.g. import w.f; // if there is an object "w" with a property f
+		   */
           case JSOP_IMPORTPROP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			/* check if the imported variables have to be tained... */
+			XSS_TAINTOUTPUT_ON_VALUE(JSVAL_VOID);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* create a new scope if necessary */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc, XSS_TAINTED);
+			}
+#endif /* XSS */
             /* Get an immediate atom naming the property. */
             atom = GET_ATOM(cx, script, pc);
             id   = (jsid)atom;
@@ -3468,12 +5725,34 @@ js_Interpret(JSContext *cx, jsval *result)
             sp--;
             break;
 
+		  /*
+		   * Imports an element
+		   * e.g. import w['x']; // if there is an object "w" with a property "x".
+		   */
           case JSOP_IMPORTELEM:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			/* check if the imported variables have to be tained... */
+			XSS_TAINTOUTPUT_ON_VALUE(JSVAL_VOID);
+			XSS_CALC_TAINTOUTPUT;
+
+			/* create a new scope if necessary */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc, XSS_TAINTED);
+			}
+#endif /* XSS */
             ELEMENT_OP(-1, ok = ImportProperty(cx, obj, id));
             sp -= 2;
             break;
 #endif /* JS_HAS_EXPORT_IMPORT */
-
+		  /*
+		   * used to call a traphandler
+		   * e.g. function test() { print('test');}
+		   * trap(test, 10, "print('trapped')");
+		   * test();
+		   */
           case JSOP_TRAP:
             switch (JS_HandleTrap(cx, script, pc, &rval)) {
               case JSTRAP_ERROR:
@@ -3500,15 +5779,37 @@ js_Interpret(JSContext *cx, jsval *result)
             LOAD_INTERRUPT_HANDLER(rt);
             break;
 
+		  /*
+		   * Gets the arguments of a function
+		   * function a(b,c,d) { x = arguments; }
+		   */
           case JSOP_ARGUMENTS:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             SAVE_SP(fp);
             ok = js_GetArgsValue(cx, fp, &rval);
             if (!ok)
                 goto out;
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 
+		  /*
+		   * Gets a argument.
+		   * function x(i,j,k) { x = arguments[1]; };
+		   */
           case JSOP_ARGSUB:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             id = (jsid) INT_TO_JSVAL(GET_ARGNO(pc));
             SAVE_SP(fp);
             ok = js_GetArgsProperty(cx, fp, id, &obj, &rval);
@@ -3525,55 +5826,133 @@ js_Interpret(JSContext *cx, jsval *result)
                  */
                 obj = LAZY_ARGS_THISP;
             }
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 
 #undef LAZY_ARGS_THISP
 
+		  /*
+		   * The number of arguments.
+		   * e.g. function () { a = arguments.length; }
+		   */
           case JSOP_ARGCNT:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             id = (jsid) rt->atomState.lengthAtom;
             SAVE_SP(fp);
             ok = js_GetArgsProperty(cx, fp, id, &obj, &rval);
             if (!ok)
                 goto out;
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 
+		  /*
+		   * gets the argument of the function
+		   * e.g. function test(a) { print(a); }
+		   */
           case JSOP_GETARG:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             slot = GET_ARGNO(pc);
             JS_ASSERT(slot < fp->fun->nargs);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(fp->argv[slot]);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(fp->argv[slot]);
             obj = NULL;
             break;
 
+		  /*
+		   * sets an argument in a function
+		   * e.g. function test(a) { a = 2; }
+		   */
           case JSOP_SETARG:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             slot = GET_ARGNO(pc);
             JS_ASSERT(slot < fp->fun->nargs);
             vp = &fp->argv[slot];
             GC_POKE(cx, *vp);
             *vp = FETCH_OPND(-1);
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(FETCH_OPND(-1));
+			*vp = FETCH_OPND(-1);
+#endif /* XSS */
             obj = NULL;
             break;
 
+		  /*
+		   * Gets a function-variable;
+		   * e.g. function test() { var x = 1; print(x); }
+		   */
           case JSOP_GETVAR:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             slot = GET_VARNO(pc);
             JS_ASSERT(slot < fp->fun->nvars);
+#ifdef XSS /* orig */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(fp->vars[slot]);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(fp->vars[slot]);
             obj = NULL;
             break;
 
+		  /*
+		   * Sets a function-variable;
+		   * e.g. function test() { var x = 5; }
+		   */
           case JSOP_SETVAR:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             slot = GET_VARNO(pc);
             JS_ASSERT(slot < fp->fun->nvars);
             vp = &fp->vars[slot];
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(FETCH_OPND(-1));
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(FETCH_OPND(-1));
+#endif /* XSS */
             GC_POKE(cx, *vp);
             *vp = FETCH_OPND(-1);
             obj = NULL;
             break;
 
+		  /*
+		   * defines a constant or a variable
+		   * e.g. var x = 1; or const x = 1;
+		   */
           case JSOP_DEFCONST:
           case JSOP_DEFVAR:
-          {
+		  {
             JSBool defined;
 
             atom = GET_ATOM(cx, script, pc);
@@ -3597,9 +5976,14 @@ js_Interpret(JSContext *cx, jsval *result)
                 if (!ok)
                     goto out;
             }
+
             break;
           }
 
+		  /*
+		   * defines a function
+		   * e.g. function x() {};
+		   */
           case JSOP_DEFFUN:
           {
             uintN flags;
@@ -3693,6 +6077,13 @@ js_Interpret(JSContext *cx, jsval *result)
           }
 
 #if JS_HAS_LEXICAL_CLOSURE
+
+		  /*
+		   * Definition of a function in a function.
+		   * e.g.: function x() { 
+		   *  function y() {} 
+		   * }
+		   */
           case JSOP_DEFLOCALFUN:
             /*
              * Define a local function (i.e., one nested at the top level of
@@ -3719,10 +6110,20 @@ js_Interpret(JSContext *cx, jsval *result)
             fp->vars[slot] = OBJECT_TO_JSVAL(obj);
             break;
 
+		  /*
+		   * defines an anonymous function (i.e a function with no name)
+		   * e.g. var a = function() {};
+		   */
           case JSOP_ANONFUNOBJ:
             /* Push the specified function object literal. */
             atom = GET_ATOM(cx, script, pc);
             obj = ATOM_TO_OBJECT(atom);
+#ifdef XSS
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(OBJECT_TO_JSVAL(obj));
+#endif /* XSS */
 
             /* If re-parenting, push a clone of the function object. */
             parent = fp->scopeChain;
@@ -3732,14 +6133,34 @@ js_Interpret(JSContext *cx, jsval *result)
                     ok = JS_FALSE;
                     goto out;
                 }
+#ifdef XSS
+				/* check if the output has to be tainted */
+				XSS_TAINTOUTPUT_ON_VALUE(OBJECT_TO_JSVAL(obj));
+#endif /* XSS */
             }
+#ifdef XSS
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(OBJECT_TO_JSVAL(obj));
             break;
 
+		  /*
+		   * a named function that is assigned to a variable
+		   * e.g. var x = function a() {}; x();
+		   */
           case JSOP_NAMEDFUNOBJ:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             /* ECMA ed. 3 FunctionExpression: function Identifier [etc.]. */
             atom = GET_ATOM(cx, script, pc);
             rval = ATOM_KEY(atom);
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
             JS_ASSERT(JSVAL_IS_FUNCTION(cx, rval));
 
             /*
@@ -3769,6 +6190,11 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			xss_jsval = OBJECT_TO_JSVAL(obj);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(xss_jsval);
+#endif /* XSS */
 
             /*
              * 4. Create a property in the object Result(1).  The property's
@@ -3803,6 +6229,9 @@ js_Interpret(JSContext *cx, jsval *result)
             PUSH_OPND(OBJECT_TO_JSVAL(obj));
             break;
 
+		  /*
+		   * if (true) function f() {return 1;}
+		   */
           case JSOP_CLOSURE:
             /*
              * ECMA ed. 3 extension: a named function expression in a compound
@@ -3815,6 +6244,13 @@ js_Interpret(JSContext *cx, jsval *result)
             atom = GET_ATOM(cx, script, pc);
             JS_ASSERT(JSVAL_IS_FUNCTION(cx, ATOM_KEY(atom)));
             obj = ATOM_TO_OBJECT(atom);
+
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(OBJECT_TO_JSVAL(obj));
+#endif /* XSS */
 
             /*
              * Clone the function object with the current scope chain as the
@@ -3841,6 +6277,12 @@ js_Interpret(JSContext *cx, jsval *result)
             attrs = fun->flags & (JSFUN_GETTER | JSFUN_SETTER);
             if (attrs)
                 attrs |= JSPROP_SHARED;
+#ifdef XSS /* XSS */
+			/* taint object */
+			XSS_CALC_TAINTOUTPUT;
+			xss_jsval = OBJECT_TO_JSVAL(obj);
+			XSS_TAINT_JSVAL_ON_OUTPUT(xss_jsval);
+#endif /* XSS */
             ok = OBJ_DEFINE_PROPERTY(cx, fp->varobj, (jsid)fun->atom,
                                      attrs ? JSVAL_VOID : OBJECT_TO_JSVAL(obj),
                                      (attrs & JSFUN_GETTER)
@@ -3859,31 +6301,59 @@ js_Interpret(JSContext *cx, jsval *result)
 #endif /* JS_HAS_LEXICAL_CLOSURE */
 
 #if JS_HAS_GETTER_SETTER
+		  /*
+		   * Defines getter and setters for properties, elements and variables.
+		   */
           case JSOP_GETTER:
           case JSOP_SETTER:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             JS_ASSERT(len == 1);
             op2 = (JSOp) *++pc;
             cs = &js_CodeSpec[op2];
             len = cs->length;
             switch (op2) {
+			  /*
+			   * Sets a getter/setter for a name
+			   * e.g. var name; name getter = function() { return 0;} 
+			   */
               case JSOP_SETNAME:
+			  /*
+			   * Sets a getter/setter for a property
+			   * e.g. var obj = new Object(); obj.name getter = function() {return 0;}
+			   */
               case JSOP_SETPROP:
                 atom = GET_ATOM(cx, script, pc);
                 id   = (jsid)atom;
                 i = -1;
                 rval = FETCH_OPND(i);
                 goto gs_pop_lval;
-
+			  /*
+			   * Sets a getter/setter for a array-element
+			   * e.g. var x = new Array(); x[0] getter = function() { return 0;} 
+			   */
               case JSOP_SETELEM:
                 rval = FETCH_OPND(-1);
                 i = -2;
                 FETCH_ELEMENT_ID(i, id);
               gs_pop_lval:
                 lval = FETCH_OPND(i-1);
+#ifdef XSS /* XSS */
+				XSS_TAINTOUTPUT_ON_VALUE(lval);
+				XSS_CALC_TAINTOUTPUT;
+				XSS_TAINT_JSVAL_ON_OUTPUT(lval);
+#endif /* XSS */
                 VALUE_TO_OBJECT(cx, lval, obj);
                 break;
 
 #if JS_HAS_INITIALIZERS
+			  /*
+			   * Sets a getter/setter for a object-property on initialization
+			   * e.g. var obj = { x:0 , get a() { return this.x; } }
+			   */
               case JSOP_INITPROP:
                 JS_ASSERT(sp - fp->spbase >= 2);
                 i = -1;
@@ -3891,7 +6361,10 @@ js_Interpret(JSContext *cx, jsval *result)
                 atom = GET_ATOM(cx, script, pc);
                 id   = (jsid)atom;
                 goto gs_get_lval;
-
+			  /*
+			   * Sets a getter/setter for an array-element on initialization
+			   * e.g. ???
+			   */
               case JSOP_INITELEM:
                 JS_ASSERT(sp - fp->spbase >= 3);
                 rval = FETCH_OPND(-1);
@@ -3900,6 +6373,11 @@ js_Interpret(JSContext *cx, jsval *result)
               gs_get_lval:
                 lval = FETCH_OPND(i-1);
                 JS_ASSERT(JSVAL_IS_OBJECT(lval));
+#ifdef XSS /* XSS */
+				XSS_TAINTOUTPUT_ON_VALUE(lval);
+				XSS_CALC_TAINTOUTPUT;
+				XSS_TAINT_JSVAL_ON_OUTPUT(lval);
+#endif /* XSS */
                 obj = JSVAL_TO_OBJECT(lval);
                 break;
 #endif /* JS_HAS_INITIALIZERS */
@@ -3926,6 +6404,12 @@ js_Interpret(JSContext *cx, jsval *result)
             if (!ok)
                 goto out;
 
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+#endif /* XSS */
             if (op == JSOP_GETTER) {
                 getter = (JSPropertyOp) JSVAL_TO_OBJECT(rval);
                 setter = NULL;
@@ -3954,11 +6438,24 @@ js_Interpret(JSContext *cx, jsval *result)
 #endif /* JS_HAS_GETTER_SETTER */
 
 #if JS_HAS_INITIALIZERS
+		  /*
+		   * Opcode that starts a new initializer (e.g. by literals)
+		   * e.g. x = [ 1 ];
+		   */
           case JSOP_NEWINIT:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             argc = 0;
             fp->sharpDepth++;
             goto do_new;
 
+		  /*
+		   * Opcode that marks the end of an initializer
+		   * e.g. x = [ 1 ];
+		   */
           case JSOP_ENDINIT:
             if (--fp->sharpDepth == 0)
                 fp->sharpArray = NULL;
@@ -3970,9 +6467,18 @@ js_Interpret(JSContext *cx, jsval *result)
             cx->newborn[GCX_OBJECT] = JSVAL_TO_GCTHING(lval);
             break;
 
+		  /*
+		   * Initializes an object-property in an object-literal
+		   * e.g. var x = { 'a' : 1};
+		   */
           case JSOP_INITPROP:
             /* Pop the property's value into rval. */
             JS_ASSERT(sp - fp->spbase >= 2);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
 
             /* Get the immediate property name into id. */
@@ -3981,9 +6487,18 @@ js_Interpret(JSContext *cx, jsval *result)
             i = -1;
             goto do_init;
 
+		  /*
+		   * Initializes an Array-element in an array-literal
+		   * e.g. var x = [ 1 ];
+		   */
           case JSOP_INITELEM:
             /* Pop the element's value into rval. */
             JS_ASSERT(sp - fp->spbase >= 3);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
 
             /* Pop and conditionally atomize the element id. */
@@ -3991,6 +6506,17 @@ js_Interpret(JSContext *cx, jsval *result)
             i = -2;
 
           do_init:
+#ifdef XSS /* XSS */
+			/* taint on rval and scope */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
+
             /* Find the object being initialized at top of stack. */
             lval = FETCH_OPND(i-1);
             JS_ASSERT(JSVAL_IS_OBJECT(lval));
@@ -4004,7 +6530,17 @@ js_Interpret(JSContext *cx, jsval *result)
             break;
 
 #if JS_HAS_SHARP_VARS
+		  /*
+		   * Defines a sharp-variable for an array-literal
+		   * e.g. var x = #0 = [1, #0#];
+		   * where the #0 is a sharp-variable for the array.
+		   */
           case JSOP_DEFSHARP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             obj = fp->sharpArray;
             if (!obj) {
                 obj = js_NewArrayObject(cx, 0, NULL);
@@ -4025,12 +6561,31 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			/* check if the output has to be tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			/* set current scope for OBJ_SET_PROPERTY if it calls a native method */
+			if (taintoutput == XSS_TAINTED) {
+				XSS_NEW_SCOPE(fp->scope_current, pc, pc + 1, taintoutput);
+			}
+#endif /* XSS */
             ok = OBJ_SET_PROPERTY(cx, obj, id, &rval);
             if (!ok)
                 goto out;
             break;
 
+		  /*
+		   * Uses a sharp-variable that was defined with JSOP_DEFSHARP for
+		   * an array-literal
+		   * e.g. #0= [ #0# ]; (the last reference #0#)
+		   */
           case JSOP_USESHARP:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             i = (jsint) GET_ATOM_INDEX(pc);
             id = (jsid) INT_TO_JSVAL(i);
             obj = fp->sharpArray;
@@ -4049,6 +6604,10 @@ js_Interpret(JSContext *cx, jsval *result)
                 ok = JS_FALSE;
                 goto out;
             }
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             PUSH_OPND(rval);
             break;
 #endif /* JS_HAS_SHARP_VARS */
@@ -4067,18 +6626,32 @@ js_Interpret(JSContext *cx, jsval *result)
             sp = fp->spbase + i;
             break;
 
+		  /*
+		   * Called to jump into finally-block of try-catch-finally
+		   * e.g. try { throw("test"); } catch(e) {} finally{};
+		   */
           case JSOP_GOSUB:
             i = PTRDIFF(pc, script->main, jsbytecode) + len;
             len = GET_JUMP_OFFSET(pc);
             PUSH(INT_TO_JSVAL(i));
             break;
 
+		  /*
+		   * Called to jump into finally-block of try-catch-finally 
+		   * (extended jump)
+		   * e.g. try { throw("test"); } catch(e) {} finally{};
+		   */
           case JSOP_GOSUBX:
             i = PTRDIFF(pc, script->main, jsbytecode) + len;
             len = GET_JUMPX_OFFSET(pc);
             PUSH(INT_TO_JSVAL(i));
             break;
 
+		  /*
+		   * Called to return from a finally-block of try-catch-finally 
+		   * the rval is the pc of the next opcode
+		   * e.g. try { throw("test"); } catch(e) {} finally{};
+		   */
           case JSOP_RETSUB:
             rval = POP();
             JS_ASSERT(JSVAL_IS_INT(rval));
@@ -4087,21 +6660,61 @@ js_Interpret(JSContext *cx, jsval *result)
             len = 0;
             break;
 
+		  /*
+		   * handles the (e)-part in the catch-definition
+		   * e.g. try { throw("test"); } catch(e) {} finally{};
+		   */
           case JSOP_EXCEPTION:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+			XSS_TAINTOUTPUT_ON_VALUE(cx->exception);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_SET_STACK_TAINTED_ON_OUTPUT(fp->scope_sp,(sp), taintoutput);
+#endif /* XSS */
             PUSH(cx->exception);
             break;
 
+		  /*
+		   * Throws an exception
+		   * e.g. throw("test");
+		   */
           case JSOP_THROW:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             cx->throwing = JS_TRUE;
             cx->exception = POP_OPND();
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(cx->exception);
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(cx->exception);
+#endif /* XSS */
             ok = JS_FALSE;
             /* let the code at out try to catch the exception. */
             goto out;
 
+		  /*
+		   * Initializes the variable in the catch-block of a
+		   * try-catch-statement
+		   * e.g. try {} catch (e) {}
+		   */
           case JSOP_INITCATCHVAR:
             /* Pop the property's value into rval. */
             JS_ASSERT(sp - fp->spbase >= 2);
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = POP_OPND();
+
+#ifdef XSS /* XSS */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+#endif /* XSS */
 
             /* Get the immediate catch variable name into id. */
             atom = GET_ATOM(cx, script, pc);
@@ -4112,6 +6725,12 @@ js_Interpret(JSContext *cx, jsval *result)
             JS_ASSERT(JSVAL_IS_OBJECT(lval));
             obj = JSVAL_TO_OBJECT(lval);
 
+#ifdef XSS /* XSS */
+			XSS_CALC_TAINTOUTPUT;
+			XSS_TAINT_JSVAL_ON_OUTPUT(rval);
+			XSS_TAINT_JSVAL_ON_OUTPUT(lval);
+#endif /* XSS */
+
             /* Define obj[id] to contain rval and to be permanent. */
             ok = OBJ_DEFINE_PROPERTY(cx, obj, id, rval, NULL, NULL,
                                      JSPROP_PERMANENT, NULL);
@@ -4121,7 +6740,16 @@ js_Interpret(JSContext *cx, jsval *result)
 #endif /* JS_HAS_EXCEPTIONS */
 
 #if JS_HAS_INSTANCEOF
+		  /*
+		   * checks if something is an instance of something other
+		   * e.g. "test" instanceof Object;
+		   */
           case JSOP_INSTANCEOF:
+#ifdef XSS /* XSS */
+			/* check if the stack is tainted or the scope */
+			XSS_TAINTOUTPUT_ON_STACK;
+			XSS_TAINTOUTPUT_ON_SCOPE;
+#endif /* XSS */
             rval = FETCH_OPND(-1);
             if (JSVAL_IS_PRIMITIVE(rval)) {
                 SAVE_SP(fp);
@@ -4144,11 +6772,21 @@ js_Interpret(JSContext *cx, jsval *result)
                     goto out;
             }
             sp--;
+#ifdef XSS /* XSS */
+			/* taint the output if one of the operands is tainted */
+			XSS_TAINTOUTPUT_ON_VALUE(rval);
+			XSS_TAINTOUTPUT_ON_VALUE(lval);
+			XSS_CALC_TAINTOUTPUT;
+#endif /* XSS */
             STORE_OPND(-1, BOOLEAN_TO_JSVAL(cond));
             break;
 #endif /* JS_HAS_INSTANCEOF */
 
 #if JS_HAS_DEBUGGER_KEYWORD
+		  /*
+		   * called if the keyword debugger is encountered
+		   * e.g. debugger;
+		   */
           case JSOP_DEBUGGER:
           {
             JSTrapHandler handler = rt->debuggerHandler;
@@ -4192,10 +6830,12 @@ js_Interpret(JSContext *cx, jsval *result)
     advance_pc:
         pc += len;
 
+#ifdef XSS_DEBUG
+		if (xssGetDoLog() == XSS_DO_LOG) {
+#endif /* XSS_DEBUG */
 #ifdef DEBUG
         if (tracefp) {
             intN ndefs, n;
-            jsval *siter;
 
             ndefs = cs->ndefs;
             if (ndefs) {
@@ -4203,22 +6843,37 @@ js_Interpret(JSContext *cx, jsval *result)
                 for (n = -ndefs; n < 0; n++) {
                     str = js_DecompileValueGenerator(cx, n, sp[n], NULL);
                     if (str) {
-                        fprintf(tracefp, "%s %s",
+                        fprintf(tracefp, "%s %s(%u @ %x)",
                                 (n == -ndefs) ? "  output:" : ",",
-                                JS_GetStringBytes(str));
+                                JS_GetStringBytes(str), (uint) sp[n], (uint) sp+(n));
+#ifdef XSS
+#ifdef XSS_DEBUG
+						XSS_PRINT_GC_TAINT(sp[n]);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
                     }
                 }
                 fprintf(tracefp, " @ %d\n", sp - fp->spbase);
             }
-            fprintf(tracefp, "  stack: ");
-            for (siter = fp->spbase; siter < sp; siter++) {
-                str = js_ValueToSource(cx, *siter);
-                fprintf(tracefp, "%s ",
-                        str ? JS_GetStringBytes(str) : "<null>");
-            }
-            fputc('\n', tracefp);
+#ifdef XSS
+#ifndef XSS_DEBUG
+			JS_BEGIN_MACRO
+				jsval *siter;
+				fprintf(tracefp, "  stack: ");
+				for (siter = fp->spbase; siter < sp; siter++) {
+					str = js_ValueToSource(cx, *siter);
+					fprintf(tracefp, "%s ",
+							str ? JS_GetStringBytes(str) : "<null>");
+				}
+				fputc('\n', tracefp);
+			JS_END_MACRO;
+#endif /* XSS_DEBUG */
+#endif /* XSS */
         }
 #endif
+#ifdef XSS_DEBUG
+	}
+#endif /* XSS_DEBUG */
     }
 out:
 
@@ -4261,6 +6916,17 @@ out:
             goto advance_pc;
         }
     }
+
+#ifdef XSS /* XSS */
+	if (xss_inited == 1) {
+		XSS_SCOPES_FREE_ALL(fp);
+	}
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+	fp->scope_count = 0;
+	xssSetDoLog(0);
+#endif /* XSS_DEBUG */
+#endif /* XSS */
+
 no_catch:
 #endif
 

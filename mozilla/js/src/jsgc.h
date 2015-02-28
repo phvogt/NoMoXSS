@@ -89,6 +89,17 @@ struct JSGCLockHashEntry {
     uint32          count;
 };
 
+/*
+ * The private JSGCThing struct, which describes a gcFreeList element.
+ */
+#ifdef XSS /* add a taintstructure */
+struct JSGCThing {
+    JSGCThing   *next;
+    uint8       *flagp;
+	XSS_taint   taint;
+};
+#endif /* XSS */
+
 #if 1
 /*
  * Since we're forcing a GC from JS_GC anyway, don't bother wasting cycles
@@ -99,6 +110,7 @@ struct JSGCLockHashEntry {
 #else
 #define GC_POKE(cx, oldval) ((cx)->runtime->gcPoke = JSVAL_IS_GCTHING(oldval))
 #endif
+
 
 extern intN
 js_ChangeExternalStringFinalizer(JSStringFinalizeOp oldop,

@@ -200,6 +200,16 @@ interface nsIURI : nsISupports
      */
     AUTF8String resolve(in AUTF8String relativePath);
 
+#ifdef XSS /* XSS */
+
+	// checks if the domain of this uri equals another uri
+	boolean domainEquals(in nsIURI other);
+
+	// gets the domain of the uri
+	ACString getDomain();
+
+#endif /* XSS */
+
 
     /************************************************************************
      * Additional attributes:

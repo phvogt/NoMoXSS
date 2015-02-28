@@ -43,6 +43,7 @@ REQUIRES	= xpcom \
 		  plugin \
 		  xuldoc \
 		  imglib2 \
+		  js \
 		  $(NULL)
 
 CPPSRCS		= \

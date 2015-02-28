@@ -44,6 +44,10 @@
 
 #include "xpcprivate.h"
 
+#ifdef XSS
+#include "xsstaint.h"
+#endif /* XSS */
+
 //#define STRICT_CHECK_OF_UNICODE
 #ifdef STRICT_CHECK_OF_UNICODE
 #define ILLEGAL_RANGE(c) (0!=((c) & 0xFF80))
@@ -340,6 +344,15 @@ XPCConvert::NativeData2JS(XPCCallContext& ccx, jsval* d, const void* s,
                         return JS_FALSE;
 
                     *d = STRING_TO_JSVAL(str);
+
+#ifdef XSS /* XSS */
+
+					if ((*((nsAString**)s))->xssGetTainted() == XSS_TAINTED) {
+						XSS_JSVAL_SET_ISTAINTED(XSS_TAINTED, *d);
+					}
+
+#endif /* XSS */
+
                 }
 
                 // *d is defaulted to JSVAL_NULL so no need to set it
@@ -504,6 +517,16 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
 
     if(pErr)
         *pErr = NS_ERROR_XPC_BAD_CONVERT_JS;
+
+#ifdef XSS /* XSS */
+	int xssIsTainted = XSS_JSVAL_IS_TAINTED(s);
+
+	// convert the jsval back to the orig jsval
+	jsval xss_temp;
+	XSS_TO_ORIG_JSVAL(s, xss_temp);
+	s = xss_temp;
+
+#endif /* XSS */
 
     switch(type.TagPart())
     {
@@ -671,6 +694,13 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
             JSString* str = nsnull;
             JSBool isNewString = JS_FALSE;
             PRUint32 length;
+#ifdef XSS /* XSS */
+
+			if (cx->fp && XSS_SCOPE_ISTAINTED(cx->fp->scope_current)) {
+				xssIsTainted = XSS_TAINTED;
+			}
+
+#endif /* XSS */
 
             if(JSVAL_IS_VOID(s))
             {
@@ -731,7 +761,11 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                 else
                 {
                     // use nsString to encourage sharing
+#ifndef XSS /* original */
                     const nsAString *rs = new nsString(chars, length);
+#else /* XSS */
+                    const nsAString *rs = new nsString(xssIsTainted, chars, length);
+#endif /* XSS */
                     if(!rs)
                         return JS_FALSE;
                     *((const nsAString**)d) = rs;
@@ -749,6 +783,11 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                 else
                     ws->Assign(chars, length);
             }
+#ifdef XSS /* XSS */
+
+			(*((nsAString**)d))->xssSetTainted(xssIsTainted);
+
+#endif /* XSS */
             return JS_TRUE;
         }
 
@@ -859,6 +898,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                         return JS_FALSE;
 
                     rs->SetIsVoid(PR_TRUE);
+#ifdef XSS /* XSS */
+					rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
                     *((nsACString**)d) = rs;
                 }
                 else
@@ -866,6 +908,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                     nsCString* rs = *((nsCString**)d);
                     rs->Truncate();
                     rs->SetIsVoid(PR_TRUE);
+#ifdef XSS /* XSS */
+					rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
                 }
                 return JS_TRUE;
             }
@@ -896,6 +941,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
             }
             CopyUTF16toUTF8(nsDependentString((const PRUnichar*)chars, length),
                             *rs);
+#ifdef XSS /* XSS */
+			rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
             return JS_TRUE;
         }
 
@@ -914,6 +962,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                         return JS_FALSE;
 
                     rs->SetIsVoid(PR_TRUE);
+#ifdef XSS /* XSS */
+					rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
                     *((nsACString**)d) = rs;
                 }
                 else
@@ -921,6 +972,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                     nsACString* rs = *((nsACString**)d);
                     rs->Truncate();
                     rs->SetIsVoid(PR_TRUE);
+#ifdef XSS /* XSS */
+					rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
                 }
                 return JS_TRUE;
             }
@@ -937,7 +991,11 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
 
             if(useAllocator)
             {
+#ifndef XSS /* original */
                 const nsACString *rs = new nsCString(chars, length);
+#else /* XSS */
+                const nsACString *rs = new nsCString(xssIsTainted, chars, length);
+#endif /* XSS */
 
                 if(!rs)
                     return JS_FALSE;
@@ -949,6 +1007,9 @@ XPCConvert::JSData2Native(XPCCallContext& ccx, void* d, jsval s,
                 nsACString* rs = *((nsACString**)d);
 
                 rs->Assign(nsDependentCString(chars, length));
+#ifdef XSS /* XSS */
+				rs->xssSetTainted(xssIsTainted);
+#endif /* XSS */
             }
             return JS_TRUE;
         }

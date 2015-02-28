@@ -1,0 +1,96 @@
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: NPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Netscape Public License
+ * Version 1.1 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/NPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is 
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the NPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the NPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+/**
+ * This file contains an interface to the XSS Host Connect Permission Manager,
+ * used to persistenly store permissions for permanent allow/deny from host to
+ * host
+ *
+ */
+
+#include "nsISupports.idl"
+
+%{ C++
+#define NS_XSSHOSTCONNECTPERMISSIONMANAGER_NAME   "XSS Host Connect Permission Manager" 
+#define NS_XSSHOSTCONNECTPERMISSIONMANAGER_CLASSNAME NS_XSSHOSTCONNECTPERMISSIONMANAGER_NAME
+
+// {10BBFD5A-E18B-4475-9809-7D311B993028}
+#define NS_XSSHOSTCONNECTPERMISSIONMANAGER_CID \
+{ 0x10bbfd5a, 0xe18b, 0x4475, { 0x98, 0x09, 0x7d, 0x31, 0x1b, 0x99, 0x30, 0x28 } }
+
+#define NS_XSSHOSTCONNECTPERMISSIONMANAGER_CONTRACTID "@mozilla.org/xsshostconnectpermissionmanager;1"
+%}
+
+// {9488F874-A5A2-467d-8C93-963CB7D17D3A}
+//static const GUID <<name>> = 
+//{ 0x9488f874, 0xa5a2, 0x467d, { 0x8c, 0x93, 0x96, 0x3c, 0xb7, 0xd1, 0x7d, 0x3a } };
+[scriptable, uuid(9488F874-A5A2-467d-8C93-963CB7D17D3A)]
+interface nsIXSSHostConnectPermissionManager : nsISupports
+{
+  /**
+   * Predefined return values for the testPermission method and for
+   * the permission param of the add method
+   */
+  const PRUint32 UNKNOWN_CONNECT = 0;
+  const PRUint32 ALLOW_CONNECT = 1;
+  const PRUint32 DENY_CONNECT = 2;
+
+  /**
+   * Add permission information for two given hosts and permission type. 
+   *
+   * @param fromHost    the host from which the connection starts
+   * @param toHost      the target host of the connection
+   * @param permission  allow (ALLOW_CONNECT) or deny (DENY_CONNECT) this 
+   *                    host combination
+   */
+  void add(in AUTF8String fromHost,
+	       in AUTF8String toHost,
+           in PRUint32 permission);
+
+  /**
+   * Test whether the two hosts are allowed to connect
+   * @param fromHost    the host from which the connection starts
+   * @param toHost      the target host of the connection
+   * @param return      ALLOW_CONNECT if the connection is allowed, 
+   *                    ALLOW_DENY if it is forbidden or ALLOW_UNKOWN
+   *                    if there is no rule for this connection.
+   */
+  PRUint32 testPermission(in AUTF8String fromHost,
+	                      in AUTF8String toHost);
+
+};

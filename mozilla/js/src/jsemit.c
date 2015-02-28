@@ -540,7 +540,7 @@ BuildSpanDepTable(JSContext *cx, JSCodeGenerator *cg)
     const JSCodeSpec *cs;
     ptrdiff_t len, off;
 
-    pc = CG_BASE(cg);
+    pc = CG_BASE(cg) + cg->spanDepTodo;
     end = CG_NEXT(cg);
     while (pc < end) {
         op = (JSOp)*pc;
@@ -601,10 +601,12 @@ BuildSpanDepTable(JSContext *cx, JSCodeGenerator *cg)
             }
             len = 1 + pc2 - pc;
             break;
-          }
+		  }
+
 #endif /* JS_HAS_SWITCH_STATEMENT */
         }
 
+		JS_ASSERT(len > 0);
         pc += len;
     }
 
@@ -1031,6 +1033,7 @@ OptimizeSpanDeps(JSContext *cx, JSCodeGenerator *cg)
                 }
             }
         }
+		cg->main.lastNoteOffset += growth;
 
         /*
          * Fix try/catch notes (O(numTryNotes * log2(numSpanDeps)), but it's
@@ -1124,6 +1127,7 @@ OptimizeSpanDeps(JSContext *cx, JSCodeGenerator *cg)
     FreeJumpTargets(cg, cg->jumpTargets);
     cg->jumpTargets = NULL;
     cg->numSpanDeps = cg->numJumpTargets = 0;
+	cg->spanDepTodo = CG_OFFSET(cg);
     return JS_TRUE;
 }
 
@@ -2518,6 +2522,10 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
     JSOp op;
     uint32 argc;
     int stackDummy;
+#ifdef XSS /* XSS */
+	ptrdiff_t xss_top, xss_off;
+    intN xss_noteIndex;
+#endif /* XSS */
 
     if (!JS_CHECK_STACK_SIZE(cx, stackDummy)) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_OVER_RECURSED);
@@ -3088,12 +3096,23 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
         if (!js_EmitTree(cx, cg, pn->pn_left))
             return JS_FALSE;
         js_PushStatement(&cg->treeContext, &stmtInfo, STMT_WITH, CG_OFFSET(cg));
+#ifdef XSS /* XSS */
+		/* generate a sourcenote to store the length of the with-statement later
+		   I know that I should create a new type... */
+		xss_noteIndex = js_NewSrcNote3(cx, cg, SRC_SWITCH, 0, 0);
+		xss_top = CG_OFFSET(cg);
+#endif /* XSS */
         if (js_Emit1(cx, cg, JSOP_ENTERWITH) < 0)
             return JS_FALSE;
         if (!js_EmitTree(cx, cg, pn->pn_right))
             return JS_FALSE;
         if (js_Emit1(cx, cg, JSOP_LEAVEWITH) < 0)
             return JS_FALSE;
+#ifdef XSS /* XSS */
+		/* store the length of the with-statement */
+		xss_off = CG_OFFSET(cg) - xss_top;
+		ok = js_SetSrcNoteOffset(cx, cg, (uintN)xss_noteIndex, 0, xss_off);
+#endif /* XSS */
         ok = js_PopStatementCG(cx, cg);
         break;
 
@@ -3247,6 +3266,12 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
                     return JS_FALSE;
 
                 EMIT_ATOM_INDEX_OP(JSOP_INITCATCHVAR, ALE_INDEX(ale));
+#ifdef XSS /* XSS */
+				/* generate a sourcenote to store the length of the with-statement later
+				   I know that I should create a new type... */
+				xss_noteIndex = js_NewSrcNote3(cx, cg, SRC_SWITCH, 0, 0);
+				xss_top = CG_OFFSET(cg);
+#endif /* XSS */
                 if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0 ||
                     js_Emit1(cx, cg, JSOP_ENTERWITH) < 0) {
                     return JS_FALSE;
@@ -3285,7 +3310,14 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
                 if (js_NewSrcNote2(cx, cg, SRC_CATCH, off) < 0 ||
                     js_Emit1(cx, cg, JSOP_LEAVEWITH) < 0) {
                     return JS_FALSE;
-                }
+				}
+#ifdef XSS /* XSS */
+				else {
+					/* store the length of the with-statement */
+					xss_off = CG_OFFSET(cg) - xss_top;
+					ok = js_SetSrcNoteOffset(cx, cg, (uintN)xss_noteIndex, 0, xss_off);
+				}
+#endif /* XSS */
 
                 /* gosub <finally>, if required */
                 if (pn->pn_kid3) {
@@ -4231,7 +4263,7 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
         JS_ASSERT(0);
     }
 
-    if (ok && --cg->emitLevel == 0 && cg->spanDeps)
+	if (ok && --cg->emitLevel == 0 && cg->spanDeps) 
         ok = OptimizeSpanDeps(cx, cg);
 
     return ok;
@@ -4302,7 +4334,7 @@ js_NewSrcNote(JSContext *cx, JSCodeGenerator *cg, JSSrcNoteType type)
     jssrcnote *sn;
     ptrdiff_t offset, delta, xdelta;
 
-    /*
+	/*
      * Claim a note slot in CG_NOTES(cg) by growing it if necessary and then
      * incrementing CG_NOTE_COUNT(cg).
      */
@@ -4336,10 +4368,12 @@ js_NewSrcNote(JSContext *cx, JSCodeGenerator *cg, JSSrcNoteType type)
      * does take two bytes, js_SetSrcNoteOffset will grow CG_NOTES(cg).
      */
     SN_MAKE_NOTE(sn, type, delta);
+
     for (n = (intN)js_SrcNoteSpec[type].arity; n > 0; n--) {
         if (js_NewSrcNote(cx, cg, SRC_NULL) < 0)
             return -1;
     }
+
     return index;
 }
 

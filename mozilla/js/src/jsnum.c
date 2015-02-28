@@ -539,10 +539,28 @@ js_NewDouble(JSContext *cx, jsdouble d)
 {
     jsdouble *dp;
 
-    dp = (jsdouble *) js_AllocGCThing(cx, GCX_DOUBLE);
+#ifdef XSS /* XSS */
+	/* creates the double and sets the tainting-info if it should be an int */
+	XSS_taint* xss_taint;
+	jsint i;
+#endif /* XSS */
+
+	dp = (jsdouble *) js_AllocGCThing(cx, GCX_DOUBLE);
     if (!dp)
 	return NULL;
     *dp = d;
+
+#ifdef XSS /* XSS */
+	/* only create doubles for xss-info */
+    if (JSDOUBLE_IS_INT(d, i) && INT_FITS_IN_JSVAL(i)) {
+		XSS_JSVAL_GET_TAINT(DOUBLE_TO_JSVAL(dp), xss_taint);
+		XSS_TAINTSTRUCTURE_SET_ORIGTYPE(xss_taint, JSVAL_INT);
+	} else {
+		XSS_JSVAL_GET_TAINT(DOUBLE_TO_JSVAL(dp), xss_taint);
+		XSS_TAINTSTRUCTURE_SET_ORIGTYPE(xss_taint, JSVAL_DOUBLE);
+	}
+#endif /* XSS */
+
     return dp;
 }
 
@@ -567,14 +585,25 @@ js_NewDoubleValue(JSContext *cx, jsdouble d, jsval *rval)
 JSBool
 js_NewNumberValue(JSContext *cx, jsdouble d, jsval *rval)
 {
-    jsint i;
 
+    jsint i;
+#ifndef XSS /* orig */
     if (JSDOUBLE_IS_INT(d, i) && INT_FITS_IN_JSVAL(i)) {
 	*rval = INT_TO_JSVAL(i);
     } else {
 	if (!js_NewDoubleValue(cx, d, rval))
 	    return JS_FALSE;
     }
+#else /* creates the double and sets the tainting-info if it should be an int */
+	XSS_taint* xss_taint;
+	/* only create doubles for xss-info */
+	if (!js_NewDoubleValue(cx, d, rval))
+		return JS_FALSE;
+    if (JSDOUBLE_IS_INT(d, i) && INT_FITS_IN_JSVAL(i)) {
+		XSS_JSVAL_GET_TAINT(*rval, xss_taint);
+		XSS_TAINTSTRUCTURE_SET_ORIGTYPE(xss_taint, JSVAL_INT);
+	}
+#endif /* XSS */
     return JS_TRUE;
 }
 

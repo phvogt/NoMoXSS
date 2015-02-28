@@ -117,6 +117,26 @@ public:
                                const nsACString& aContentType,
                                PRBool aMoreFilesToCome) = 0;
 
+#ifdef XSS /* XSS */
+
+protected:
+
+	// flag if the submission form is tainted
+	int xss_istainted;
+
+public:
+
+	int xssGetTainted() {
+		return xss_istainted;
+	}
+
+	void xssSetTainted(int tainted) {
+		xss_istainted = tainted;
+	}
+
+
+#endif /* XSS */
+
 };
 
 //

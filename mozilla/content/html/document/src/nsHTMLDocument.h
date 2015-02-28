@@ -62,6 +62,14 @@
 
 #include "nsICommandManager.h"
 
+#ifdef XSS /* XSS */
+
+#include "nsClassHashtable.h"
+#include "nsHashKeys.h"
+#include "nsHashSets.h"
+
+#endif /* XSS */
+
 class nsIParser;
 class nsICSSLoader;
 class nsIURI;
@@ -181,6 +189,30 @@ public:
   NS_IMETHOD Writeln(const nsAString & text);
   NS_IMETHOD GetElementsByName(const nsAString & elementName,
                                nsIDOMNodeList **_retval);
+
+#ifdef XSS /* XSS */
+
+/*
+ * Checks if the node (or one of its methods) is tainted.
+ * node ... the nsIDOMNode to test
+ * _retval ... true if the node was tainted, otherwise false
+ */
+  NS_IMETHOD XssIsNodeTainted(nsIDOMNode *node, PRBool *_retval);
+/*
+ * Checks if the node and the method is tainted.
+ * node ... the nsIDOMNode to test
+ * method ... the vtblIndex of the method to test
+ * _retval ... true if the node and the method was tainted, otherwise false
+ */
+  NS_IMETHOD XssIsMethodTainted(nsIDOMNode *node, PRUint32 method, PRBool *_retval);
+/*
+ * Sets the node and the method as tainted.
+ * node ... the nsIDOMNode to taint
+ * method ... the vtblIndex of the method to taint
+ */
+  NS_IMETHOD XssSetMethodTainted(nsIDOMNode *node, PRUint32 method);
+
+#endif /* XSS */
 
   // nsIDOMNSHTMLDocument interface
   NS_DECL_NSIDOMNSHTMLDOCUMENT
@@ -343,6 +375,13 @@ protected:
   // kNameSpaceID_None for good ol' HTML documents, and
   // kNameSpaceID_XHTML for spiffy new XHTML documents.
   PRInt32 mDefaultNamespaceID;
+
+#ifdef XSS /* XSS */
+
+  nsClassHashtable<nsISupportsHashKey, nsInt32HashSet> mXssTaintedHash;
+
+#endif /* XSS */
+
 };
 
 #endif /* nsHTMLDocument_h___ */

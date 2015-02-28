@@ -97,7 +97,7 @@ const char *js_incop_str[]      = {"++", "--"};
 
 const JSCodeSpec FAR js_CodeSpec[] = {
 #define OPDEF(op,val,name,token,length,nuses,ndefs,prec,format) \
-    {name,token,length,nuses,ndefs,prec,format},
+	{name,token,length,nuses,ndefs,prec,format},
 #include "jsopcode.tbl"
 #undef OPDEF
 };
@@ -130,6 +130,7 @@ js_Disassemble(JSContext *cx, JSScript *script, JSBool lines, FILE *fp)
     while (pc < end) {
         if (pc == script->main)
             fputs("main:\n", fp);
+
         len = js_Disassemble1(cx, script, pc,
                               PTRDIFF(pc, script->code, jsbytecode),
                               lines, fp);
@@ -1257,7 +1258,9 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                 break;
 
               case JSOP_ENTERWITH:
+#ifndef XSS /* !XSS */
                 JS_ASSERT(!js_GetSrcNote(jp->script, pc));
+#endif /* !XSS */
                 rval = POP_STR();
                 js_printf(jp, "\twith (%s) {\n", rval);
                 jp->indent += 4;

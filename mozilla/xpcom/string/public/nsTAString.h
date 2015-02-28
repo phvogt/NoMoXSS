@@ -37,6 +37,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifdef XSS /* XSS */
+#define XSS_NOT_TAINTED 0
+#define XSS_TAINTED 1
+#endif /* XSS */
 
   /**
    * The base for string comparators
@@ -346,7 +350,22 @@ class nsTAString_CharT
       NS_COM void Replace( index_type cutStart, size_type cutLength, const self_type& readable );
       NS_COM void Replace( index_type cutStart, size_type cutLength, const substring_tuple_type& readable );
 
-      
+
+#ifdef XSS /* XSS */
+		/**
+		 * Checks if this string is tainted
+		 */
+	  NS_COM int xssGetTainted() const {
+		return xss_istainted;
+	  }
+
+	    /**
+	     * Sets this string to tainted
+		 */
+	  NS_COM void xssSetTainted(int tainted);
+
+#endif /* XSS */
+
         /**
          * this is public to support automatic conversion of tuple to abstract
          * string, which is necessary to support our API.
@@ -357,10 +376,13 @@ class nsTAString_CharT
         , mLength(0)
         , mFlags(0)
         {
+#ifdef XSS /* XSS */
+		  xss_istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
           Assign(tuple);
         }
 
-    protected:
+	protected:
 
       friend class nsTSubstringTuple_CharT;
 
@@ -385,6 +407,21 @@ class nsTAString_CharT
       size_type   mLength;
       PRUint32    mFlags;
 
+#ifdef XSS /* XSS */
+	  
+	  // flag if the string is tainted
+	  int xss_istainted;
+
+#endif /* XSS */
+
+#ifdef XSS /* XSS */
+	  
+	  nsTAString_CharT() {
+		  xss_istainted = XSS_NOT_TAINTED;
+	  }
+	  
+#endif /* XSS */
+
         /**
          * nsTAString must be subclassed before it can be instantiated.
          */
@@ -393,7 +430,13 @@ class nsTAString_CharT
         , mData(data)
         , mLength(length)
         , mFlags(flags)
-        {}
+        {
+#ifdef XSS /* XSS */
+	  
+		  xss_istainted = XSS_NOT_TAINTED;
+	  
+#endif /* XSS */
+		}
 
         /**
          * optional ctor for use by subclasses.
@@ -404,7 +447,8 @@ class nsTAString_CharT
       nsTAString_CharT(PRUint32 flags)
         : mVTable(obsolete_string_type::sCanonicalVTable)
         , mFlags(flags)
-        {}
+        {
+		}
 
         /**
          * get pointer to internal string buffer (may not be null terminated).

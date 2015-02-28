@@ -497,6 +497,33 @@ PR_IMPLEMENT(void) PR_Abort(void)
     abort();
 }
 
+#ifdef XSS /* XSS */
+static int DEBUG_XSS_LOG = 0;
+static char *DEBUG_XSS_FILENAME = "";
+
+PR_IMPLEMENT(int)
+PR_XSS_DEBUG_LOG() {
+	return DEBUG_XSS_LOG;
+}
+
+PR_IMPLEMENT(void)
+PR_XSS_SET_DEBUG_LOG(int newval) {
+	DEBUG_XSS_LOG = newval;
+}
+
+PR_IMPLEMENT(void)
+PR_XSS_SET_DEBUG_FILENAME(char *filename) {
+	DEBUG_XSS_FILENAME = filename;
+}
+
+PR_IMPLEMENT(char*)
+PR_XSS_GET_DEBUG_FILENAME() {
+	return DEBUG_XSS_FILENAME;
+}
+
+#endif /* XSS */
+
+
 #if defined(XP_OS2)
 /*
  * Added definitions for DebugBreak() for 2 different OS/2 compilers.

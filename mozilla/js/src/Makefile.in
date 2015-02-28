@@ -96,6 +96,7 @@ CSRCS		= \
 		jsutil.c \
 		jsxdrapi.c \
 		prmjtime.c \
+		xsstaint.c \
 		$(NULL)
 
 EXPORTS		= \
@@ -141,6 +142,8 @@ EXPORTS		= \
 		jsutil.h \
 		jsxdrapi.h \
 		jsstddef.h \
+		xsstaint.h \
+		xssdbg.h \
 		$(NULL)
 
 ifeq ($(OS_ARCH),WINNT)

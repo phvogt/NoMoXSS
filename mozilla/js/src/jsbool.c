@@ -191,6 +191,11 @@ js_ValueToBoolean(JSContext *cx, jsval v, JSBool *bp)
     JSBool b;
     jsdouble d;
 
+#ifdef XSS /* get original type of jsval */
+	jsval xss_jsval;
+	XSS_TO_ORIG_JSVAL(v, xss_jsval);
+#endif /* XSS */
+
 #if defined _MSC_VER && _MSC_VER <= 800
     /* MSVC1.5 coredumps */
     if (!bp)
@@ -201,11 +206,19 @@ js_ValueToBoolean(JSContext *cx, jsval v, JSBool *bp)
 #define ELSE else
 #endif
 
+#ifdef XSS /* handle xss-types */
+    if (JSVAL_IS_NULL(xss_jsval) || JSVAL_IS_VOID(xss_jsval)) {
+	/* Must return early to avoid falling thru to JSVAL_IS_OBJECT case. */
+	*bp = JS_FALSE;
+	return JS_TRUE;
+    }
+#else /* original */
     if (JSVAL_IS_NULL(v) || JSVAL_IS_VOID(v)) {
 	/* Must return early to avoid falling thru to JSVAL_IS_OBJECT case. */
 	*bp = JS_FALSE;
 	return JS_TRUE;
     }
+#endif /* XSS */
     if (JSVAL_IS_OBJECT(v)) {
 	if (!JSVERSION_IS_ECMA(cx->version)) {
 	    if (!OBJ_DEFAULT_VALUE(cx, JSVAL_TO_OBJECT(v), JSTYPE_BOOLEAN, &v))

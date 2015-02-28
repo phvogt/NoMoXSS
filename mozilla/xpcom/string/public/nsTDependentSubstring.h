@@ -63,20 +63,34 @@ class nsTDependentSubstring_CharT : public nsTSubstring_CharT
       nsTDependentSubstring_CharT( const abstract_string_type& str, PRUint32 startPos, PRUint32 length = size_type(-1) )
         : substring_type(F_NONE)
         {
+#ifdef XSS /* XSS */
+		  xss_istainted = str.xssGetTainted();
+#endif /* XSS */
           Rebind(str, startPos, length);
         }
 
       nsTDependentSubstring_CharT( const substring_type& str, PRUint32 startPos, PRUint32 length = size_type(-1) )
         : substring_type(F_NONE)
         {
+#ifdef XSS /* XSS */
+		  xss_istainted = str.xssGetTainted();
+#endif /* XSS */
           Rebind(str, startPos, length);
         }
 
       nsTDependentSubstring_CharT( const char_type* start, const char_type* end )
-        : substring_type(NS_CONST_CAST(char_type*, start), end - start, F_NONE) {}
+        : substring_type(NS_CONST_CAST(char_type*, start), end - start, F_NONE) {
+#ifdef XSS /* XSS */
+		  xss_istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
+		}
 
       nsTDependentSubstring_CharT( const const_iterator& start, const const_iterator& end )
-        : substring_type(NS_CONST_CAST(char_type*, start.get()), end.get() - start.get(), F_NONE) {}
+        : substring_type(NS_CONST_CAST(char_type*, start.get()), end.get() - start.get(), F_NONE) {
+#ifdef XSS /* XSS */
+		  xss_istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
+		}
 
       // auto-generated copy-constructor OK (XXX really?? what about base class copy-ctor?)
 

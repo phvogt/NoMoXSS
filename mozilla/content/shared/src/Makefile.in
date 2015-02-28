@@ -38,6 +38,7 @@ REQUIRES	= xpcom \
 		  necko \
 		  unicharutil \
 		  imglib2 \
+		  js \
 		  $(NULL)
 
 CPPSRCS		= \

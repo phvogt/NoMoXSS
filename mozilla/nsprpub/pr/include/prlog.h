@@ -186,6 +186,13 @@ NSPR_API(void) PR_LogPrint(const char *fmt, ...);
 */
 NSPR_API(void) PR_LogFlush(void);
 
+#ifdef XSS /* XSS */
+NSPR_API(int) PR_XSS_DEBUG_LOG();
+NSPR_API(void) PR_XSS_SET_DEBUG_LOG(int newval);
+NSPR_API(void) PR_XSS_SET_DEBUG_FILENAME(char *filename);
+NSPR_API(char*) PR_XSS_GET_DEBUG_FILENAME();
+#endif /* XSS */
+
 /*
 ** Windoze 16 can't support a large static string space for all of the
 ** various debugging strings so logging is not enabled for it.

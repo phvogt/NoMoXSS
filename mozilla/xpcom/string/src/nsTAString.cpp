@@ -189,6 +189,9 @@ nsTAString_CharT::SetLength( size_type size )
 void
 nsTAString_CharT::Assign( const self_type& readable )
   {
+#ifdef XSS /* XSS */
+	xss_istainted = readable.xss_istainted;
+#endif /* XSS */
     if (mVTable == obsolete_string_type::sCanonicalVTable)
       AsSubstring()->Assign(readable);
     else
@@ -238,6 +241,11 @@ nsTAString_CharT::Assign( char_type c )
 void
 nsTAString_CharT::Append( const self_type& readable )
   {
+#ifdef XSS /* XSS */
+	if (readable.xssGetTainted() == XSS_TAINTED) {
+		xssSetTainted(XSS_TAINTED);
+    }
+#endif /* XSS */
     if (mVTable == obsolete_string_type::sCanonicalVTable)
       AsSubstring()->Append(readable);
     else
@@ -285,6 +293,11 @@ nsTAString_CharT::Append( char_type c )
 void
 nsTAString_CharT::Insert( const self_type& readable, index_type pos )
   {
+#ifdef XSS /* XSS */
+	if (readable.xss_istainted) {
+		xss_istainted = readable.xss_istainted;
+    }
+#endif /* XSS */
     if (mVTable == obsolete_string_type::sCanonicalVTable)
       AsSubstring()->Insert(readable, pos);
     else
@@ -339,6 +352,11 @@ nsTAString_CharT::Cut( index_type cutStart, size_type cutLength )
 void
 nsTAString_CharT::Replace( index_type cutStart, size_type cutLength, const self_type& readable )
   {
+#ifdef XSS /* XSS */
+	if (readable.xss_istainted) {
+		xss_istainted = readable.xss_istainted;
+    }
+#endif /* XSS */
     if (mVTable == obsolete_string_type::sCanonicalVTable)
       AsSubstring()->Replace(cutStart, cutLength, readable);
     else
@@ -403,3 +421,12 @@ nsTAString_CharT::ToSubstring() const
     size_type length = GetReadableBuffer(&data);
     return substring_type(NS_CONST_CAST(char_type*, data), length, 0);
   }
+
+#ifdef XSS /* XSS */
+
+void
+nsTAString_CharT::xssSetTainted(int tainted)
+  {
+    xss_istainted = tainted;
+  }
+#endif /* XSS */

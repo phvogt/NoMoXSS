@@ -39,6 +39,11 @@
 #define nsTextFragment_h___
 
 #include "nsAString.h"
+
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
+
 class nsString;
 class nsCString;
 
@@ -79,6 +84,11 @@ public:
   nsTextFragment()
     : m1b(nsnull), mAllBits(0)
   {
+#ifdef XSS /* XSS */
+	  
+	  xss_istainted = XSS_NOT_TAINTED;
+
+#endif /* XSS */
   }
 
   ~nsTextFragment();
@@ -250,6 +260,24 @@ public:
     PRUint32 mLength : 29;
   };
 
+#ifdef XSS /* XSS */
+		
+    /**
+	 * Checks if this string is tainted
+	 */
+	int xssGetTainted() const
+	{
+		return xss_istainted;
+	}
+
+
+	/**
+     * Sets this string to tainted
+	 */
+	void xssSetTainted(int tainted);
+
+#endif /* XSS */
+
 protected:
   void ReleaseText();
 
@@ -262,6 +290,13 @@ protected:
     PRUint32 mAllBits;
     FragmentBits mState;
   };
+
+#ifdef XSS /* XSS */
+	  
+	  // flag if the string is tainted
+	  int xss_istainted;
+
+#endif /* XSS */
 };
 
 #endif /* nsTextFragment_h___ */

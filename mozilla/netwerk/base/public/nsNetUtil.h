@@ -83,6 +83,11 @@
 #include "nsIPersistentProperties2.h"
 #include "nsISyncStreamListener.h"
 
+#ifdef XSS /* XSS */
+#include <ctype.h>
+#include <stdio.h>
+#endif /* XSS */
+
 // Helper, to simplify getting the I/O service.
 inline const nsGetServiceByCID
 do_GetIOService(nsresult* error = 0)
@@ -897,5 +902,205 @@ NS_LoadPersistentPropertiesFromURISpec(nsIPersistentProperties **result,
 
     return rv;
 }
+
+#ifdef XSS /* XSS */
+
+static const unsigned char xss_uc[] =
+{
+    '\000', '\001', '\002', '\003', '\004', '\005', '\006', '\007',
+    '\010', '\011', '\012', '\013', '\014', '\015', '\016', '\017',
+    '\020', '\021', '\022', '\023', '\024', '\025', '\026', '\027',
+    '\030', '\031', '\032', '\033', '\034', '\035', '\036', '\037',
+    ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',
+    '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',
+    '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',
+    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',
+    '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',
+    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',
+    'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',
+    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',
+    '`',    'A',    'B',    'C',    'D',    'E',    'F',    'G',
+    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',
+    'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',
+    'X',    'Y',    'Z',    '{',    '|',    '}',    '~',    '\177',
+    0200,   0201,   0202,   0203,   0204,   0205,   0206,   0207,
+    0210,   0211,   0212,   0213,   0214,   0215,   0216,   0217,
+    0220,   0221,   0222,   0223,   0224,   0225,   0226,   0227,
+    0230,   0231,   0232,   0233,   0234,   0235,   0236,   0237,
+    0240,   0241,   0242,   0243,   0244,   0245,   0246,   0247,
+    0250,   0251,   0252,   0253,   0254,   0255,   0256,   0257,
+    0260,   0261,   0262,   0263,   0264,   0265,   0266,   0267,
+    0270,   0271,   0272,   0273,   0274,   0275,   0276,   0277,
+    0300,   0301,   0302,   0303,   0304,   0305,   0306,   0307,
+    0310,   0311,   0312,   0313,   0314,   0315,   0316,   0317,
+    0320,   0321,   0322,   0323,   0324,   0325,   0326,   0327,
+    0330,   0331,   0332,   0333,   0334,   0335,   0336,   0337,
+    0340,   0341,   0342,   0343,   0344,   0345,   0346,   0347,
+    0350,   0351,   0352,   0353,   0354,   0355,   0356,   0357,
+    0360,   0361,   0362,   0363,   0364,   0365,   0366,   0367,
+    0370,   0371,   0372,   0373,   0374,   0375,   0376,   0377
+};
+
+inline PRIntn xss_strcasecmp(const char *a, const char *b)
+{
+    const unsigned char *ua = (const unsigned char *)a;
+    const unsigned char *ub = (const unsigned char *)b;
+
+    if( ((const char *)0 == a) || (const char *)0 == b ) 
+        return (PRIntn)(a-b);
+
+    while( (xss_uc[*ua] == xss_uc[*ub]) && ('\0' != *a) )
+    {
+        a++;
+        ua++;
+        ub++;
+    }
+
+    return (PRIntn)(xss_uc[*ua] - xss_uc[*ub]);
+}
+
+/**
+ * Checks if the address is an ipv4 adress
+ * aAdress the adress to check
+ * result is true, if it is an ipv4-adress otherwise false
+ */
+inline PRBool isIPV4Address(const char *aAddress)
+{
+    int addr[4];
+    int numDots = 0;
+    
+    for (unsigned int i=0; i < strlen(aAddress); ++i)
+    {
+        if (isspace(aAddress[i]))
+            return PR_FALSE;
+        if (aAddress[i] == '.')
+        {
+            ++numDots;
+            if (numDots > 3)
+                return PR_FALSE;
+        }
+        else if (!isdigit(aAddress[i]))
+            return PR_FALSE;
+    }
+
+    if (sscanf(aAddress, "%d.%d.%d.%d", 
+        &addr[0], &addr[1], &addr[2], &addr[3]) != 4)
+        return PR_FALSE;
+
+    if ((addr[0] > 255) || 
+        (addr[1] > 255) || 
+        (addr[2] > 255) || 
+        (addr[3] > 255))
+        return PR_FALSE;
+
+    return PR_TRUE;
+}
+
+/**
+ * Compares to host strings and checks if the domains are equal. A domain is
+ * equal, if the last 2 parts are equal (e.g. www.google.at and google.at)
+ * thisHost the first host to compare
+ * otherHost the second host to compare
+ * result is true if the last two parts are equal. otherwise false
+ */
+inline PRBool domainStrEquals(nsCAutoString thisHost, nsCAutoString otherHost) {
+
+	// Search for two dots, starting at the end.
+	// If there are no two dots found, ++dot will turn to zero,
+	// that will return the entire string.
+	PRInt32 dot = thisHost.RFindChar('.');
+	dot = thisHost.RFindChar('.', dot-1);
+	++dot;
+
+	// Get the domain, ie the last part of the host (www.domain.com -> domain.com)
+	// This will break on co.uk
+	const nsACString &tail = Substring(thisHost, dot, thisHost.Length() - dot);
+
+	// If the tail is longer then the whole otherHost, it will never match
+	if (otherHost.Length() < tail.Length()) {
+        return PR_FALSE;
+	}
+
+	// Get the last part of the firstUri with the same length as |tail|
+	const nsACString &otherTail = Substring(otherHost, otherHost.Length() - tail.Length(), tail.Length());
+
+	// if both adresses are ipv4 adresses compare both of them
+	if (isIPV4Address(thisHost.get()) && isIPV4Address(otherHost.get())) {
+		if (xss_strcasecmp(thisHost.get(), otherHost.get()) != 0) {
+			return PR_FALSE;
+		}
+	// at least one is a hostname so compare the last two parts
+	} else {
+		// Check that both tails are the same, and that just before the tail in
+		// |otherUri| there is a dot. That means both url are in the same domain
+		if ((otherHost.Length() > tail.Length() &&
+			otherHost.CharAt(otherHost.Length() - tail.Length() - 1) != '.') ||
+			!tail.Equals(otherTail)) {
+			return PR_FALSE;
+		}
+	}
+
+	return PR_TRUE;
+
+}
+
+#ifdef DEBUG
+#define WARN_IF_URI_UNINITIALIZED(uri,name)                         \
+  PR_BEGIN_MACRO                                                    \
+    if ((uri)) {                                                    \
+        nsCAutoString spec;                                         \
+        (uri)->GetAsciiSpec(spec);                                  \
+        if (spec.IsEmpty()) {                                       \
+            NS_WARNING(name " is uninitialized, fix caller");       \
+        }                                                           \
+    }                                                               \
+  PR_END_MACRO
+
+#else  // ! defined(DEBUG)
+
+#define WARN_IF_URI_UNINITIALIZED(uri,name)
+
+#endif // defined(DEBUG)
+
+/*
+ * Gets the domain from a uri (the last 2 parts of a uri, e.g. google.com).
+ * If the uri is a ipv4-adress, the ip-adress is the domain
+ * uri the uri to extract the domain from
+ * domain the result domain
+ */
+inline nsCString getDomainFromURI(nsIURI *uri) {
+
+	nsresult rv;
+	WARN_IF_URI_UNINITIALIZED(uri, "URI");	
+
+	nsCString host;
+	nsCString domain;
+
+	// get the host
+	rv = uri->GetHost(host);
+	if (rv != NS_OK) {
+		return domain;
+	}
+
+	// check if this if an ipv4-adress
+	if (isIPV4Address(host.get())) {
+		domain = host;
+		return domain;
+	}
+
+	// Search for two dots, starting at the end.
+	// If there are no two dots found, ++dot will turn to zero,
+	// that will return the entire string.
+	PRInt32 dot = host.RFindChar('.');
+	dot = host.RFindChar('.', dot-1);
+	++dot;
+
+	// Get the domain, ie the last part of the host (www.domain.com -> domain.com)
+	// This will break on co.uk
+	domain = Substring(host, dot, host.Length() - dot);
+	return domain;
+}
+
+#endif /* XSS */
 
 #endif // !nsNetUtil_h__

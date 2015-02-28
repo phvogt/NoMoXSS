@@ -58,6 +58,11 @@
 #include "pldhash.h"
 #include "prprf.h"
 
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#include "prlog.h"
+#endif /* XSS */
+
 nsGenericDOMDataNode::nsGenericDOMDataNode()
   : mText()
 {
@@ -338,6 +343,24 @@ nsGenericDOMDataNode::GetData(nsAString& aData)
     }
   }
 
+#ifdef XSS /* XSS */
+  if (mText.xssGetTainted() == XSS_TAINTED)
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+	  if (baseURI) {
+		baseURI->GetSpec(xss_doc_uri);
+	  }
+	  XSS_LOG("xsstaintstring nsGenericDOMDataNode::GetData: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aData + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aData.xssSetTainted(mText.xssGetTainted());
+#endif /* XSS */
+
   return NS_OK;
 }
 
@@ -353,6 +376,23 @@ nsGenericDOMDataNode::SetData(const nsAString& aData)
   }
 
   nsCOMPtr<nsITextContent> textContent = do_QueryInterface(this);
+#ifdef XSS /* XSS */
+  if (aData.xssGetTainted() == XSS_TAINTED)
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+	  if (baseURI) {
+		baseURI->GetSpec(xss_doc_uri);
+	  }
+	  XSS_LOG("xsstaintstring nsGenericDOMDataNode::SetData: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aData + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  mText.xssSetTainted(aData.xssGetTainted());
+#endif /* XSS */
 
   return SetText(aData, PR_TRUE);
 }
@@ -413,6 +453,24 @@ nsGenericDOMDataNode::AppendData(const nsAString& aData)
     // we'll just have to copy for now. See bug 121841 for details.
     old_data.Append(aData);
     rv = SetText(old_data, PR_FALSE);
+#ifdef XSS /* XSS */
+	if (old_data.xssGetTainted() == XSS_TAINTED) {
+		{
+			nsCString xss_doc_uri;
+			nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+			if (baseURI) {
+				baseURI->GetSpec(xss_doc_uri);
+			}
+			XSS_LOG("xsstaintstring nsGenericDOMDataNode::AppendData: %s\n",
+				ToNewCString(
+				NS_LITERAL_STRING("'") +
+				aData + 
+				NS_LITERAL_STRING("' ") + 
+				NS_ConvertUTF8toUTF16(xss_doc_uri)));
+		} while (0);
+		mText.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   } else {
     // We know aData and the current data is ASCII, so use a
     // nsC*String, no need for any fancy unicode stuff here.
@@ -421,6 +479,24 @@ nsGenericDOMDataNode::AppendData(const nsAString& aData)
     length = old_data.Length();
     old_data.AppendWithConversion(aData);
     rv = SetText(old_data.get(), old_data.Length(), PR_FALSE);
+#ifdef XSS /* XSS */
+	if (old_data.xssGetTainted() == XSS_TAINTED) {
+		{
+			nsCString xss_doc_uri;
+			nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+			if (baseURI) {
+				baseURI->GetSpec(xss_doc_uri);
+			}
+			XSS_LOG("xsstaintstring nsGenericDOMDataNode::AppendData: %s\n",
+				ToNewCString(
+				NS_LITERAL_STRING("'") +
+				aData + 
+				NS_LITERAL_STRING("' ") + 
+				NS_ConvertUTF8toUTF16(xss_doc_uri)));
+		} while (0);
+		mText.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
   NS_ENSURE_SUCCESS(rv, rv);

@@ -85,6 +85,24 @@
 #include "nsIRadioVisitor.h"
 #include "nsIRadioGroupContainer.h"
 
+
+#ifdef XSS /* XSS */
+#include "nsIDOMHTMLDocument.h"
+#include "nsIPrompt.h"
+#include "nsReadableUtils.h"
+#include "nsIStringBundle.h"
+#include "nsIXSSHostConnectPermissionManager.h"
+
+#define xssDialogsProperties "chrome://global/locale/commonDialogs.properties"
+static NS_DEFINE_CID(kCStringBundleServiceCID,  NS_STRINGBUNDLESERVICE_CID);
+static NS_DEFINE_CID(kXSSHostConnectPermissionManagerCID,  NS_XSSHOSTCONNECTPERMISSIONMANAGER_CID);
+
+#include "xsstaint.h"
+#include "prenv.h"
+#include "prlog.h"
+
+#endif /* XSS */
+
 static const int NS_FORM_CONTROL_LIST_HASHTABLE_SIZE = 16;
 
 class nsFormControlList;
@@ -556,7 +574,11 @@ nsHTMLFormElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 }
 
 NS_IMPL_STRING_ATTR(nsHTMLFormElement, AcceptCharset, acceptcharset)
+#ifndef XSS /* original */
 NS_IMPL_STRING_ATTR(nsHTMLFormElement, Action, action)
+#else /* XSS */
+NS_IMPL_STRING_ATTR_XSS(nsHTMLFormElement, Action, action)
+#endif /* XSS */
 NS_IMPL_STRING_ATTR(nsHTMLFormElement, Enctype, enctype)
 NS_IMPL_STRING_ATTR(nsHTMLFormElement, Method, method)
 NS_IMPL_STRING_ATTR(nsHTMLFormElement, Name, name)
@@ -919,6 +941,280 @@ nsHTMLFormElement::SubmitSubmission(nsIPresContext* aPresContext,
     return NS_OK;
   }
 
+#ifdef XSS /* XSS */
+	// to prompt the user
+	nsCOMPtr<nsIPrompt> prompt;
+	// document window
+	nsCOMPtr<nsIDOMWindowInternal> window (do_QueryInterface(mDocument->GetScriptGlobalObject()));
+	// the permissionmanager to use
+	nsCOMPtr<nsIXSSHostConnectPermissionManager> xssPermissionManager;
+	// stored rule for domains
+	PRUint32 xssRuleResult = nsIXSSHostConnectPermissionManager::UNKNOWN_CONNECT;
+	// flag if domains are equal
+    PRBool isDomainEqual = PR_FALSE;
+	// uris, hosts and domains
+	nsCString calledURI, callerURI, calledHost, callerHost, calledDomain, callerDomain, mSpecTaintedstr;
+	// the document uri
+	nsIURI* documenturi = mDocument->GetDocumentURI();
+	// if not 0, a error while initializing occured
+	int initerror = 0;
+	// flag if the contentLocation is tainted (=1) or not (=0)
+	int mSpecIstainted = 0;
+	// initialize string if mSpec is tainted
+	mSpecTaintedstr = ToNewCString(NS_LITERAL_STRING("untainted")); 
+
+	if (documenturi) {
+
+		if ((aFormSubmission->xssGetTainted() || xssGetTainted()) && (mSubmitInitiatedFromUserInput == 0)) {
+			mSpecIstainted = 1;
+			mSpecTaintedstr = ToNewCString(NS_LITERAL_STRING("tainted!")); 
+		}
+		// initialize the variables
+		if (window) {
+
+			// get the prompt-service
+			window->GetPrompter(getter_AddRefs(prompt));
+			if (!prompt)
+				initerror = 1;
+		} else {
+			initerror = 2;
+		}
+
+		if (actionURI) {
+			rv = actionURI->GetSpec(calledURI);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get calledURI\n", "");
+				initerror = 3;
+			}
+			rv = actionURI->GetHost(calledHost);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get calledHost\n", "");
+				initerror = 5;
+			}
+			rv = actionURI->GetDomain(calledDomain);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get domain of called uri\n", "");
+				initerror = 7;
+			}
+		} else {
+			XSS_LOG("failed because actionURI is 0\n", "");
+			initerror = 11;
+		}
+
+		if (documenturi) {
+			rv = documenturi->GetSpec(callerURI);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get callerURI\n", "");
+				initerror = 4;
+			}
+			rv = documenturi->GetHost(callerHost);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get callerHost\n", "");
+				initerror = 6;
+			}
+			rv = documenturi->GetDomain(callerDomain);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get domain of caller\n", "");
+				initerror = 8;
+			}
+		} else {
+			XSS_LOG("failed because documenturi is 0\n", "");
+			initerror = 12;
+		}
+
+		if (initerror == 0) {
+			xssPermissionManager =
+				do_GetService(NS_XSSHOSTCONNECTPERMISSIONMANAGER_CONTRACTID, &rv);
+			if (NS_FAILED(rv)) {
+				XSS_LOG("failed to get permissionmanager\n", "");
+				initerror = 9;
+			} else {
+				rv = xssPermissionManager->TestPermission(callerDomain, calledDomain, &xssRuleResult);
+				if (NS_FAILED(rv)) {
+					XSS_LOG("failed to test permission\n", "");
+					initerror = 10;
+				}
+			}
+			// check if the questioning is switched off (XSS_USERINTERACTION==XSS_ENV_USERINTERACTION_FALSE) by the environment
+			char* env = PR_GetEnv(XSS_ENV_USERINTERACTION_STR);
+			if (env) {
+				PRInt32 num;
+				if (sscanf(env, "%d", &num) > 0) {
+					// XSS_USERINTERACTION must be XSS_ENV_USERINTERACTION_FALSE and not persistent settings
+					if ((num == XSS_ENV_USERINTERACTION_FALSE) && (xssRuleResult == nsIXSSHostConnectPermissionManager::UNKNOWN_CONNECT)) {
+						xssRuleResult = nsIXSSHostConnectPermissionManager::ALLOW_CONNECT;
+						XSS_LOG("domaincheck: environment allowed %s\n", ToNewCString(NS_LITERAL_STRING("from ") + NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+					}
+				}
+			}
+			// check if permanent rules are always used regardless of tainted status
+			env = PR_GetEnv(XSS_ENV_DONTCHECKTAINT);
+			if (env) {
+				PRInt32 num;
+				if (sscanf(env, "%d", &num) > 0) {
+					// XSS_ENV_DONTCHECKTAINT must be XSS_ENV_DONTCHECKTAINT_TRUE
+					if (num == XSS_ENV_DONTCHECKTAINT_TRUE) {
+						xssRuleResult = nsIXSSHostConnectPermissionManager::UNKNOWN_CONNECT;
+						XSS_LOG("domaincheck: environment delayed stored decision %s\n", ToNewCString(NS_LITERAL_STRING("from ") + NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+					}
+				}
+			}
+		} // end of initerror == 0
+
+		// now all variables are initialized or initerror is now != 0
+
+		// if an error occured on initializing, we don't want to check.
+		// breaking expected behaviour is bad
+		if (initerror == 0) {
+
+			// check domains
+			rv = documenturi->DomainEquals(actionURI, &isDomainEqual);
+
+			// the hosts are not equal
+			if (NS_FAILED(rv) || !isDomainEqual) {
+
+				// if we have a stored decision use it regardless of the taint state
+				if (xssRuleResult == nsIXSSHostConnectPermissionManager::ALLOW_CONNECT) {
+
+					XSS_LOG("domaincheck: user allowed it always: %s\n", 
+						ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING(" from ") 
+						+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+
+				} else if (xssRuleResult == nsIXSSHostConnectPermissionManager::DENY_CONNECT) {
+
+					XSS_LOG("domaincheck: user stopped it always: %s\n", 
+						ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING(" from ") 
+						+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+					mIsSubmitting = PR_FALSE;
+					return NS_OK;
+
+				// no decision, so ask if it is tainted
+				} else {
+					// only check, if a formelelement or the action is tainted and the form is submitted by javascript
+					if (mSpecIstainted) {
+
+						// check again if we already have a stored permission
+						// it is possible that the env-variable overrides the initial test so
+						// do it again
+						rv = xssPermissionManager->TestPermission(callerDomain, calledDomain, &xssRuleResult);
+						if (NS_FAILED(rv)) {
+							XSS_LOG("failed to test permission\n", "");
+							initerror = 10;
+						}
+
+						// if there isn't a permanent rule for it, ask the user
+						if (xssRuleResult == nsIXSSHostConnectPermissionManager::UNKNOWN_CONNECT) {
+
+							XSS_LOG("domaincheck: ask %s\n", ToNewCString(NS_LITERAL_STRING("from ") + NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+
+							// get the question-string
+							nsString xss_question_str;
+
+							nsCOMPtr<nsIStringBundleService> stringBundleService =
+								do_GetService(kCStringBundleServiceCID, &rv);
+
+							if (NS_SUCCEEDED(rv) && stringBundleService) {
+								nsCOMPtr<nsIStringBundle> stringBundle;
+								rv = stringBundleService->CreateBundle(xssDialogsProperties,
+								getter_AddRefs(stringBundle));
+
+								if (stringBundle) {
+									nsXPIDLString tempString;
+									const PRUnichar *formatStrings[2];
+									formatStrings[0] = ToNewUnicode(callerHost);
+									formatStrings[1] = ToNewUnicode(calledHost);
+									rv = stringBundle->FormatStringFromName(
+										NS_LITERAL_STRING("ConfirmExXSS").get(),
+										formatStrings, 2, getter_Copies(tempString));
+									if (tempString)
+										xss_question_str = tempString.get();
+								}
+							}
+
+							// Just in case
+							if (xss_question_str.IsEmpty()) {
+								NS_WARNING("could not get ConfirmExXSS string from string bundle");
+								xss_question_str.Assign(NS_LITERAL_STRING("[ConfirmExXSS] from "));
+								xss_question_str.Append(NS_ConvertUTF8toUTF16(callerURI));
+								xss_question_str.Append(NS_LITERAL_STRING(" to "));
+								xss_question_str.Append(NS_ConvertUTF8toUTF16(calledURI));
+							}
+							PRUnichar *xss_question = ToNewUnicode(xss_question_str);
+
+							// ask the question
+							PRInt32 xss_choice;
+							rv = prompt->ConfirmExXSS(nsnull, xss_question,
+												nsIPrompt::BUTTON_TITLE_NO * nsIPrompt::BUTTON_POS_0 +
+												nsIPrompt::BUTTON_TITLE_NO_ALWAYS  * nsIPrompt::BUTTON_POS_1 +
+												nsIPrompt::BUTTON_TITLE_YES_ALWAYS  * nsIPrompt::BUTTON_POS_2,
+												nsIPrompt::BUTTON_TITLE_YES  * nsIPrompt::BUTTON_POS_0,
+												nsnull, nsnull, nsnull, nsnull, nsnull, nsnull, &xss_choice);
+							if (NS_FAILED(rv)) {
+								mIsSubmitting = PR_FALSE;
+								return NS_OK;
+							}
+
+							// evaluate the answer
+							switch (xss_choice) {
+								// yes-button
+								case 3:
+									XSS_LOG("domaincheck: user allowed it: %s\n", 
+										ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING(" from ") 
+										+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)) );
+									break;
+								// yes, always-button
+								case 2:
+									XSS_LOG("domaincheck: user allowed it always: %s\n", 
+										ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING(" from ") 
+										+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+									break;
+									xssPermissionManager->Add(callerDomain, calledDomain,nsIXSSHostConnectPermissionManager::ALLOW_CONNECT);
+								// no-always-button
+								case 1:
+									XSS_LOG("domaincheck: user stopped it always: %s\n", 
+										ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING(" from ") 
+										+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+									xssPermissionManager->Add(callerDomain, calledDomain, nsIXSSHostConnectPermissionManager::DENY_CONNECT);
+									mIsSubmitting = PR_FALSE;
+									return NS_OK;
+									break;
+								// no-button
+								case 0:
+									XSS_LOG("domaincheck: user stopped it: %s\n", 
+										ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING("from ") 
+										+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+									mIsSubmitting = PR_FALSE;
+									return NS_OK;
+									break;
+								default:
+									XSS_LOG("domaincheck: error! %s\n", 
+										ToNewCString(NS_ConvertUTF8toUTF16(mSpecTaintedstr) + NS_LITERAL_STRING("from ") 
+										+ NS_ConvertUTF8toUTF16(callerURI) + NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+									mIsSubmitting = PR_FALSE;
+									return NS_OK;
+									break;
+							}
+						// we already have a user decision
+						} else {
+							if (xssRuleResult == nsIXSSHostConnectPermissionManager::DENY_CONNECT) {
+								mIsSubmitting = PR_FALSE;
+								XSS_LOG("domaincheck: stored always deny! %s\n", 
+									ToNewCString(NS_LITERAL_STRING("from ") + NS_ConvertUTF8toUTF16(callerURI) 
+									+ NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+								return NS_OK;
+							} else {
+								XSS_LOG("domaincheck: stored always allow! %s\n", 
+									ToNewCString(NS_LITERAL_STRING("from ") + NS_ConvertUTF8toUTF16(callerURI) 
+									+ NS_LITERAL_STRING(" to ") + NS_ConvertUTF8toUTF16(calledURI)));
+							}
+						}
+					}
+				} // end of ask user
+			} // end of domain is equal
+		} // end of initerror
+	} // end of documenturi
+#endif /* XSS */
+
   // javascript URIs are not really submissions; they just call a function.
   // Also, they may synchronously call submit(), and we want them to be able to
   // do so while still disallowing other double submissions. (Bug 139798)
@@ -1106,6 +1402,37 @@ nsHTMLFormElement::WalkFormElements(nsIFormSubmission* aFormSubmission,
     rv = formControls->GetNext(getter_AddRefs(controlSupports));
     NS_ENSURE_SUCCESS(rv, rv);
     control = do_QueryInterface(controlSupports);
+
+#ifdef XSS /* XSS */
+	// check if the control is tainted and taint the form if it is
+    nsCOMPtr<nsIDOMNode> node(do_QueryInterface(control));
+	if (node) {
+		nsCOMPtr<nsIDOMDocument> doc;		
+		node->GetOwnerDocument(getter_AddRefs(doc));
+		nsCOMPtr<nsIDOMHTMLDocument> htmlDoc = do_QueryInterface(doc);
+		if (htmlDoc) {
+			PRBool xss_test;
+			htmlDoc->XssIsNodeTainted(node, &xss_test);
+			if (xss_test) {
+				{
+					nsCString xss_doc_uri;
+					nsCOMPtr<nsIURI> baseURI;
+					GetActionURL(getter_AddRefs(baseURI));
+					if (baseURI) {
+						baseURI->GetSpec(xss_doc_uri);
+					}	  
+					XSS_LOG("xsstaintstring nsHTMLFormElement::WalkFormElements: %s\n",
+						ToNewCString(
+						NS_LITERAL_STRING("'") +
+						NS_ConvertUTF8toUTF16(xss_doc_uri) +
+					    NS_LITERAL_STRING("'")
+						));
+				} while (0);
+				xssSetTainted(XSS_TAINTED);
+			}
+		}
+	}
+#endif /* XSS */
 
     // Tell the control to submit its name/value pairs to the submission
     control->SubmitNamesValues(aFormSubmission, aSubmitElement);

@@ -72,6 +72,9 @@ JS_BEGIN_EXTERN_C
 struct JSString {
     size_t          length;
     jschar          *chars;
+#ifdef XSS /* add xss-taintstructure */
+	XSS_taint   taint;
+#endif /* XSS */
 };
 
 /*

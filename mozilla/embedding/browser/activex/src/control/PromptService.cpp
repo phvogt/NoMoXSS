@@ -55,6 +55,20 @@ public:
         const PRUnichar *checkMsg, PRBool *checkValue,
         PRInt32 *buttonPressed);
 
+#ifdef XSS /* XSS */
+    nsresult ConfirmExXSS(
+        HWND hwndParent,
+        const PRUnichar *dialogTitle,
+        const PRUnichar *text,
+        PRUint32 buttonFlags,
+        const PRUnichar *button0Title,
+        const PRUnichar *button1Title,
+        const PRUnichar *button2Title,
+        const PRUnichar *button3Title,
+        const PRUnichar *checkMsg, PRBool *checkValue,
+        PRInt32 *buttonPressed);
+#endif /* XSS */
+
     nsresult Prompt(HWND hwndParent, const PRUnichar *dialogTitle,
         const PRUnichar *text, PRUnichar **value,
         const PRUnichar *checkMsg, PRBool *checkValue,
@@ -245,6 +259,23 @@ nsresult PromptDlg::ConfirmEx(
 
     return NS_OK;
 }
+
+#ifdef XSS /* XSS */
+nsresult PromptDlg::ConfirmExXSS(
+    HWND hwndParent,
+    const PRUnichar *dialogTitle,
+    const PRUnichar *text,
+    PRUint32 buttonFlags,
+    const PRUnichar *button0Title,
+    const PRUnichar *button1Title,
+    const PRUnichar *button2Title,
+    const PRUnichar *button3Title,
+    const PRUnichar *checkMsg, PRBool *checkValue,
+    PRInt32 *buttonPressed)
+{
+	return NS_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* XSS */
 
 nsresult
 PromptDlg::Prompt(HWND hwndParent, const PRUnichar *dialogTitle,
@@ -756,6 +787,23 @@ NS_IMETHODIMP CPromptService::ConfirmEx(nsIDOMWindow *parent, const PRUnichar *d
     }
     return NS_ERROR_FAILURE;
 }
+
+#ifdef XSS /* XSS */
+NS_IMETHODIMP CPromptService::ConfirmExXSS(nsIDOMWindow *parent, const PRUnichar *dialogTitle,
+    const PRUnichar *text,
+    PRUint32 buttonFlags,
+    PRUint32 buttonFlags2,
+    const PRUnichar *button0Title,
+    const PRUnichar *button1Title,
+    const PRUnichar *button2Title,
+    const PRUnichar *button3Title,
+    const PRUnichar *checkMsg, PRBool *checkValue,
+    PRInt32 *buttonPressed)
+{
+    return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+#endif /* XSS */
 
 NS_IMETHODIMP CPromptService::Prompt(nsIDOMWindow *parent, const PRUnichar *dialogTitle,
     const PRUnichar *text, PRUnichar **value,

@@ -70,6 +70,10 @@
 #include "nsIProtocolHandler.h"
 #include "nsReadableUtils.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 static nsresult
 GetDocumentCharacterSetForURI(const nsAString& aHref, nsACString& aCharset)
 {
@@ -352,6 +356,28 @@ LocationImpl::GetHash(nsAString& aHash)
     }
   }
 
+#ifdef XSS /* XSS */
+	{
+		nsCString xss_doc_uri;
+		nsresult rv;
+		nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+		nsCOMPtr<nsIURI> uri;
+		if (webNav) {
+			webNav->GetCurrentURI(getter_AddRefs(uri));
+			if (uri) {
+				uri->GetSpec(xss_doc_uri);
+			}
+		}
+		XSS_LOG("xsstaintstring LocationImpl::GetHash: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHash + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHash.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return result;
 }
 
@@ -403,6 +429,28 @@ LocationImpl::GetHost(nsAString& aHost)
     }
   }
 
+#ifdef XSS /* XSS */
+	{
+		nsCString xss_doc_uri;
+		nsresult rv;
+		nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+		nsCOMPtr<nsIURI> uri;
+		if (webNav) {
+			webNav->GetCurrentURI(getter_AddRefs(uri));
+			if (uri) {
+				uri->GetSpec(xss_doc_uri);
+			}
+		}
+		XSS_LOG("xsstaintstring LocationImpl::GetHost: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHost + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHost.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return result;
 }
 
@@ -442,6 +490,28 @@ LocationImpl::GetHostname(nsAString& aHostname)
     }
   }
 
+#ifdef XSS /* XSS */
+	{
+		nsCString xss_doc_uri;
+		nsresult rv;
+		nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+		nsCOMPtr<nsIURI> uri;
+		if (webNav) {
+			webNav->GetCurrentURI(getter_AddRefs(uri));
+			if (uri) {
+				uri->GetSpec(xss_doc_uri);
+			}
+		}
+		XSS_LOG("xsstaintstring LocationImpl::GetHostname: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aHostname + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+  aHostname.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return result;
 }
 
@@ -479,6 +549,30 @@ LocationImpl::GetHref(nsAString& aHref)
     if (NS_SUCCEEDED(result)) {
       AppendUTF8toUTF16(uriString, aHref);
     }
+#ifdef XSS /* XSS */
+	// only taint location, if it contains a '?'
+	if (uriString.FindChar('?') >= 0) {
+		{
+			nsCString xss_doc_uri;
+			nsresult rv;
+			nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+			nsCOMPtr<nsIURI> uri;
+			if (webNav) {
+				webNav->GetCurrentURI(getter_AddRefs(uri));
+				if (uri) {
+					uri->GetSpec(xss_doc_uri);
+				}
+			}
+			XSS_LOG("xsstaintstring LocationImpl::GetHref: %s\n",
+				ToNewCString(
+				NS_LITERAL_STRING("'") +
+				aHref + 
+				NS_LITERAL_STRING("' ") + 
+				NS_ConvertUTF8toUTF16(xss_doc_uri)));
+		} while (0);
+		aHref.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
   return result;
@@ -627,6 +721,28 @@ LocationImpl::GetPathname(nsAString& aPathname)
     }
   }
 
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsresult rv;
+	  nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+	  nsCOMPtr<nsIURI> uri;
+	  if (webNav) {
+		  webNav->GetCurrentURI(getter_AddRefs(uri));
+		  if (uri) {
+			  uri->GetSpec(xss_doc_uri);
+		  }
+	  }
+	  XSS_LOG("xsstaintstring LocationImpl::GetPathname: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aPathname + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aPathname.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return result;
 }
 
@@ -666,6 +782,28 @@ LocationImpl::GetPort(nsAString& aPort)
       aPort.Append(portStr);
     }
   }
+
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsresult rv;
+	  nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+	  nsCOMPtr<nsIURI> uri;
+	  if (webNav) {
+		  webNav->GetCurrentURI(getter_AddRefs(uri));
+		  if (uri) {
+			  uri->GetSpec(xss_doc_uri);
+		  }
+	  }
+	  XSS_LOG("xsstaintstring LocationImpl::GetPort: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aPort + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aPort.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return result;
 }
@@ -721,6 +859,28 @@ LocationImpl::GetProtocol(nsAString& aProtocol)
     }
   }
 
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsresult rv;
+	  nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+	  nsCOMPtr<nsIURI> uri;
+	  if (webNav) {
+		  webNav->GetCurrentURI(getter_AddRefs(uri));
+		  if (uri) {
+			  uri->GetSpec(xss_doc_uri);
+		  }
+	  }
+	  XSS_LOG("xsstaintstring LocationImpl::GetProtocol: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aProtocol + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aProtocol.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return result;
 }
 
@@ -762,6 +922,28 @@ LocationImpl::GetSearch(nsAString& aSearch)
       AppendUTF8toUTF16(search, aSearch);
     }
   }
+
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsresult rv;
+	  nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+	  nsCOMPtr<nsIURI> uri;
+	  if (webNav) {
+		  webNav->GetCurrentURI(getter_AddRefs(uri));
+		  if (uri) {
+			  uri->GetSpec(xss_doc_uri);
+		  }
+	  }
+	  XSS_LOG("xsstaintstring LocationImpl::GetSearch: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aSearch + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aSearch.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return NS_OK;
 }
@@ -899,7 +1081,37 @@ LocationImpl::Assign(const nsAString& aUrl)
 NS_IMETHODIMP
 LocationImpl::ToString(nsAString& aReturn)
 {
+#ifndef XSS /* original */
+
   return GetHref(aReturn);
+
+#else /* XSS */
+
+	nsresult result;
+	result = GetHref(aReturn);
+	// taint the value
+	{
+		nsCString xss_doc_uri;
+		nsresult rv;
+		nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(mDocShell, &rv));
+		nsCOMPtr<nsIURI> uri;
+		if (webNav) {
+			webNav->GetCurrentURI(getter_AddRefs(uri));
+			if (uri) {
+				uri->GetSpec(xss_doc_uri);
+			}
+		}
+		XSS_LOG("xsstaintstring LocationImpl::ToString: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aReturn + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+	aReturn.xssSetTainted(XSS_TAINTED);
+	return result;
+
+#endif /* XSS */
 }
 
 nsresult

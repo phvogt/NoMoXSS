@@ -76,6 +76,16 @@ class nsTString_CharT : public nsTSubstring_CharT
           Assign(data, length);
         }
 
+#ifdef XSS /* XSS */
+      explicit
+      nsTString_CharT( int xss_tainted, const char_type* data,  size_type length = size_type(-1))
+        : substring_type()
+        {
+          Assign(data, length);
+		  xss_istainted = xss_tainted;
+        }
+#endif /* XSS */
+
       nsTString_CharT( const self_type& str )
         : substring_type()
         {

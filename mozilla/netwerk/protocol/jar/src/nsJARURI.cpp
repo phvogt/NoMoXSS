@@ -330,6 +330,55 @@ nsJARURI::Equals(nsIURI *other, PRBool *result)
     return rv;
 }
 
+#ifdef XSS /* XSS */
+NS_IMETHODIMP
+nsJARURI::DomainEquals(nsIURI *unknownOther, PRBool *result)
+{
+    NS_ENSURE_ARG_POINTER(unknownOther);
+    NS_PRECONDITION(result, "null pointer");
+
+    nsresult rv;
+
+    nsCOMPtr<nsIJARURI> other(do_QueryInterface(unknownOther, &rv));
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	nsCAutoString thisHost, otherHost;
+
+	// get the host strings
+	rv = this->GetAsciiHost(thisHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+	rv = other->GetAsciiHost(otherHost);
+    if (NS_FAILED(rv)) {
+        *result = PR_FALSE;
+        return NS_OK;
+    }
+
+	// compare the two host strings
+	if (!domainStrEquals(thisHost, otherHost)) {
+        *result = PR_FALSE;
+        return NS_OK;
+	}
+
+	*result = PR_TRUE;    
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsJARURI::GetDomain(nsACString &result)
+{
+    result = getDomainFromURI(this);
+    return NS_OK;
+}
+
+#endif /* XSS */
+
+
 NS_IMETHODIMP
 nsJARURI::SchemeIs(const char *i_Scheme, PRBool *o_Equals)
 {

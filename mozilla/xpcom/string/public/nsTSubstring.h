@@ -313,7 +313,13 @@ class nsTSubstring_CharT : public nsTAString_CharT
         // default initialization 
       nsTSubstring_CharT()
         : abstract_string_type(
-              NS_CONST_CAST(char_type*, char_traits::sEmptyBuffer), 0, F_TERMINATED) {}
+              NS_CONST_CAST(char_type*, char_traits::sEmptyBuffer), 0, F_TERMINATED) {
+#ifdef XSS /* XSS */
+	  
+		  xss_istainted = XSS_NOT_TAINTED;
+
+#endif /* XSS */
+	  }
 
         // allow subclasses to initialize fields directly
       nsTSubstring_CharT( char_type *data, size_type length, PRUint32 flags )

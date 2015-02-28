@@ -653,4 +653,121 @@ nsPromptService::GetLocaleString(const char *aKey, PRUnichar **aResult)
 
   return rv;
 }
+
+#ifdef XSS /* XSS */
+
+NS_IMETHODIMP
+nsPromptService::ConfirmExXSS(nsIDOMWindow *parent,
+                    const PRUnichar *dialogTitle, const PRUnichar *text,
+                    PRUint32 buttonFlags, PRUint32 buttonFlags2, const PRUnichar *button0Title,
+                    const PRUnichar *button1Title, const PRUnichar *button2Title,
+                    const PRUnichar *button3Title, const PRUnichar *checkMsg, 
+					PRBool *checkValue, PRInt32 *buttonPressed)
+{
+  nsresult rv;
+  nsXPIDLString stringOwner;
  
+  if (!dialogTitle) {
+    rv = GetLocaleString("Confirm", getter_Copies(stringOwner));
+    if (NS_FAILED(rv)) return NS_ERROR_FAILURE;
+    dialogTitle = stringOwner.get();
+  }
+
+  ParamBlock block;
+  rv = block.Init();
+  if (NS_FAILED(rv))
+    return rv;
+
+  block->SetString(eDialogTitle, dialogTitle);
+  block->SetString(eMsg, text);
+  
+  int buttonIDs[] = { eButton0Text, eButton1Text, eButton2Text, eButton3Text };
+  const PRUnichar* buttonStrings[] = { button0Title, button1Title, button2Title, button3Title };
+
+#define BUTTON_DEFAULT_MASK 0x03000000
+
+  block->SetInt(eDefaultButton, (buttonFlags & BUTTON_DEFAULT_MASK) >> 24);
+  block->SetInt(eDelayButtonEnable, buttonFlags & BUTTON_DELAY_ENABLE);
+
+  PRInt32 numberButtons = 0;
+  for (int i = 0; i < 4; i++) { 
+
+    if (i == 3) 
+	  buttonFlags = buttonFlags2;
+
+    nsXPIDLString buttonTextStr;
+    const PRUnichar* buttonText = 0;
+    switch (buttonFlags & 0xff) {
+      case BUTTON_TITLE_OK:
+        GetLocaleString("OK", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_CANCEL:
+        GetLocaleString("Cancel", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_YES:
+        GetLocaleString("Yes", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_NO:
+        GetLocaleString("No", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_SAVE:
+        GetLocaleString("Save", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_DONT_SAVE:
+        GetLocaleString("DontSave", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_REVERT:
+        GetLocaleString("Revert", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_YES_ALWAYS:
+        GetLocaleString("Yesalways", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_NO_ALWAYS:
+        GetLocaleString("Noalways", getter_Copies(buttonTextStr));
+        break;
+      case BUTTON_TITLE_IS_STRING:
+        buttonText = buttonStrings[i];
+        break;
+    }
+    if (!buttonText)
+      buttonText = buttonTextStr.get();
+
+    if (buttonText) {
+      block->SetString(buttonIDs[i], buttonText);
+      ++numberButtons;
+    }
+    buttonFlags >>= 8;
+  }
+  block->SetInt(eNumberButtons, numberButtons);
+  
+  block->SetString(eIconClass, NS_ConvertASCIItoUCS2(kQuestionIconClass).get());
+
+  if (checkMsg && checkValue) {
+    block->SetString(eCheckboxMsg, checkMsg);
+    // since we're setting a PRInt32, we have to sanitize the PRBool first.
+    // (myBool != PR_FALSE) is guaranteed to return either 1 or 0.
+    block->SetInt(eCheckboxState, *checkValue != PR_FALSE);
+  }
+  
+  /* perform the dialog */
+
+  rv = DoDialog(parent, block, kPromptURL);
+  if (NS_FAILED(rv))
+    return rv;
+
+  /* get back output parameters */
+
+  if (buttonPressed)
+    block->GetInt(eButtonPressed, buttonPressed);
+
+  if (checkMsg && checkValue) {
+    // GetInt returns a PRInt32; we need to sanitize it into PRBool
+    PRInt32 tempValue;
+    block->GetInt(eCheckboxState, &tempValue);
+    *checkValue = (tempValue == 1);
+  }
+
+  return rv;
+}
+
+#endif /* XSS */

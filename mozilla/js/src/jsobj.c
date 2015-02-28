@@ -68,6 +68,11 @@
 
 #include "jsdbgapi.h"   /* whether or not JS_HAS_OBJ_WATCHPOINT */
 
+#ifdef XSS /* include necessary headerfiles */
+#include "xsstaint.h"
+#include "xssdbg.h"
+#endif /* XSS */
+
 #ifdef JS_THREADSAFE
 #define NATIVE_DROP_PROPERTY js_DropProperty
 
@@ -1077,6 +1082,21 @@ obj_eval(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
             scopeobj = caller->scopeChain;
     }
 #endif
+
+#ifdef XSS /* XSS */
+	if (cx->fp != NULL) {
+#ifdef XSS_DEBUG /* XSS_DEBUG */
+		fprintf(stderr, "obj_eval: t = ");
+#endif /* XSS_DEBUG */
+		if (!XSS_SCOPE_ISTAINTED(cx->fp->scope_current)) {
+			if (XSS_JSVAL_IS_TAINTED(argv[0])) {
+				XSS_SCOPE_INIT_ROOT((*cx->fp), XSS_TAINTED, XSS_TRUE);
+			} else {
+				XSS_SCOPE_INIT_ROOT((*cx->fp), XSS_NOT_TAINTED, XSS_TRUE);
+			}
+		}
+	}
+#endif /* XSS */
     ok = js_Execute(cx, scopeobj, script, caller, JSFRAME_EVAL, rval);
     JS_DestroyScript(cx, script);
 
@@ -3629,9 +3649,19 @@ JSBool
 js_ValueToObject(JSContext *cx, jsval v, JSObject **objp)
 {
     JSObject *obj;
+#ifdef XSS /* get the original type of the value for later processing */
+	int xss_origtype = XSS_NOTYPE;
+	jsval xss_jsval;
+	XSS_TO_ORIG_JSVAL(v, xss_jsval);
+	XSS_JSVAL_GET_ORIGTYPE(v,xss_origtype);
+#endif /* XSS */
 
     if (JSVAL_IS_NULL(v) || JSVAL_IS_VOID(v)) {
         obj = NULL;
+#ifdef XSS /* handle xss-types */
+	} else if ((xss_origtype == JSVAL_VOID) || (xss_jsval == JSVAL_NULL)) {
+        obj = NULL;
+#endif /* XSS */
     } else if (JSVAL_IS_OBJECT(v)) {
         obj = JSVAL_TO_OBJECT(v);
         if (!OBJ_DEFAULT_VALUE(cx, obj, JSTYPE_OBJECT, &v))
@@ -3643,6 +3673,12 @@ js_ValueToObject(JSContext *cx, jsval v, JSObject **objp)
             obj = js_StringToObject(cx, JSVAL_TO_STRING(v));
         } else if (JSVAL_IS_INT(v)) {
             obj = js_NumberToObject(cx, (jsdouble)JSVAL_TO_INT(v));
+#ifdef XSS /* handle xss-types */
+		} else if (xss_origtype == JSVAL_BOOLEAN) {
+            obj = js_BooleanToObject(cx, (JSBool) *JSVAL_TO_DOUBLE(v));
+		} else if (xss_origtype == JSVAL_DOUBLE) {
+            obj = js_NumberToObject(cx, *JSVAL_TO_DOUBLE(v));
+#endif /* XSS */
         } else if (JSVAL_IS_DOUBLE(v)) {
             obj = js_NumberToObject(cx, *JSVAL_TO_DOUBLE(v));
         } else {

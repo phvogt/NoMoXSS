@@ -50,6 +50,10 @@
 #include "jsapi.h"
 #include "nsString.h"
 
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
+
 class nsIDOMEventListener;
 class nsIScriptContext;
 class nsIScriptGlobalObject;
@@ -91,11 +95,17 @@ public:
     : nsDependentString((PRUnichar *)::JS_GetStringChars(JSVAL_TO_STRING(v)),
                         ::JS_GetStringLength(JSVAL_TO_STRING(v)))
   {
+#ifdef XSS /* XSS */
+	xss_istainted = XSS_JSVAL_IS_TAINTED(v);
+#endif /* XSS */
   }
 
   explicit nsDependentJSString(JSString *str)
     : nsDependentString((PRUnichar *)::JS_GetStringChars(str), ::JS_GetStringLength(str))
   {
+#ifdef XSS /* XSS */
+	xss_istainted = XSS_JSVAL_IS_TAINTED(STRING_TO_JSVAL(str));
+#endif /* XSS */
   }
 
   ~nsDependentJSString()

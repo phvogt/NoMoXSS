@@ -91,6 +91,7 @@ CLEAN :
 	-@erase "$(INTDIR)\jsutil.obj"
 	-@erase "$(INTDIR)\jsxdrapi.obj"
 	-@erase "$(INTDIR)\prmjtime.obj"
+	-@erase "$(INTDIR)\xsstaint.obj"
 	-@erase "$(OUTDIR)\js32.dll"
 	-@erase "$(OUTDIR)\js32.exp"
 	-@erase "$(OUTDIR)\js32.lib"
@@ -105,6 +106,7 @@ CPP_PROJ=/nologo /MD /W3 /GX /O2 /D "NDEBUG" /D _X86_=1 /D "_WINDOWS" /D "WIN32"
  "XP_WIN" /D "JSFILE" /D "EXPORT_JS_API" /Fp"$(INTDIR)/js.pch" /YX\
  /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Release/
+CPP_OBJS2=.\xss
 CPP_SBRS=.\.
 
 .c{$(CPP_OBJS)}.obj:
@@ -114,6 +116,15 @@ CPP_SBRS=.\.
    $(CPP) $(CPP_PROJ) $<  
 
 .cxx{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.c{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.cpp{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.cxx{$(CPP_OBJS)}.obj:
    $(CPP) $(CPP_PROJ) $<  
 
 .c{$(CPP_SBRS)}.sbr:
@@ -181,6 +192,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\jsutil.obj" \
 	"$(INTDIR)\jsxdrapi.obj" \
 	"$(INTDIR)\prmjtime.obj" \
+	"$(INTDIR)\xsstaint.obj" \
 	"$(OUTDIR)\fdlibm.lib"
 
 "$(OUTDIR)\js32.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -239,6 +251,7 @@ CLEAN :
 	-@erase "$(INTDIR)\jsutil.obj"
 	-@erase "$(INTDIR)\jsxdrapi.obj"
 	-@erase "$(INTDIR)\prmjtime.obj"
+	-@erase "$(INTDIR)\xsstaint.obj"
 	-@erase "$(INTDIR)\vc40.idb"
 	-@erase "$(INTDIR)\vc40.pdb"
 	-@erase "$(OUTDIR)\js32.dll"
@@ -253,10 +266,13 @@ CLEAN :
 CPP=cl.exe
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D _X86_=1 /D "_WINDOWS" /YX /c
 # ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /D "_DEBUG" /D "DEBUG" /D _X86_=1 /D "_WINDOWS" /D "WIN32" /D "XP_WIN" /D "JSFILE" /D "EXPORT_JS_API" /YX /c
-CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "_DEBUG" /D "DEBUG" /D _X86_=1 /D "_WINDOWS"\
+#CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "_DEBUG" /D "DEBUG" /D _X86_=1 /D "_WINDOWS"\
+#CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "XSS=1" /D "XSS_SHELL=1" /D "_DEBUG" /D "DEBUG" /D _X86_=1 /D "_WINDOWS"\
+CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "XSS=1" /D "XSS_SHELL=1" /D "XSS_DEBUG=1" /D "_DEBUG" /D "DEBUG" /D _X86_=1 /D "_WINDOWS"\
  /D "WIN32" /D "XP_WIN" /D "JSFILE" /D "EXPORT_JS_API" /Fp"$(INTDIR)/js.pch" /YX\
  /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/
+CPP_OBJS2=.\xss
 CPP_SBRS=.\.
 
 .c{$(CPP_OBJS)}.obj:
@@ -266,6 +282,15 @@ CPP_SBRS=.\.
    $(CPP) $(CPP_PROJ) $<  
 
 .cxx{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.c{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.cpp{$(CPP_OBJS)}.obj:
+   $(CPP) $(CPP_PROJ) $<  
+
+{$(CPP_OBJS2)}.cxx{$(CPP_OBJS)}.obj:
    $(CPP) $(CPP_PROJ) $<  
 
 .c{$(CPP_SBRS)}.sbr:
@@ -333,6 +358,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\jsutil.obj" \
 	"$(INTDIR)\jsxdrapi.obj" \
 	"$(INTDIR)\prmjtime.obj" \
+	"$(INTDIR)\xsstaint.obj" \
 	"$(OUTDIR)\fdlibm.lib"
 
 "$(OUTDIR)\js32.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -446,7 +472,9 @@ CLEAN :
 CPP=cl.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /YX /c
 # ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /D "_CONSOLE" /D "_DEBUG" /D "WIN32" /D "XP_WIN" /D "JSFILE" /D "DEBUG" /YX /c
-CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "_CONSOLE" /D "_DEBUG" /D "WIN32"\
+#CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "_CONSOLE" /D "_DEBUG" /D "WIN32"\
+#CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "XSS=1" /D "XSS_SHELL=1" /D "_CONSOLE" /D "_DEBUG" /D "WIN32"\
+CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /D "XSS=1" /D "XSS_SHELL=1" /D "XSS_DEBUG=1" /D "_CONSOLE" /D "_DEBUG" /D "WIN32"\
  /D "XP_WIN" /D "JSFILE" /D "DEBUG" /Fp"$(INTDIR)/jsshell.pch" /YX\
  /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/
@@ -632,12 +660,14 @@ CLEAN :
 CPP=cl.exe
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D _X86_=1 /D "_WINDOWS" /YX /c
 # ADD CPP /nologo /MDd /W3 /GX /Z7 /Od /D "_DEBUG" /D "WIN32" /D _X86_=1 /D "_WINDOWS" /D "_IEEE_LIBM" /YX /c
-CPP_PROJ=/nologo /MDd /W3 /GX /Z7 /Od /D "_DEBUG" /D "WIN32" /D _X86_=1 /D "_WINDOWS" /D\
+#CPP_PROJ=/nologo /MDd /W3 /GX /Z7 /Od /D "_DEBUG" /D "WIN32" /D _X86_=1 /D "_WINDOWS" /D\
+#CPP_PROJ=/nologo /MDd /W3 /GX /Z7 /Od /D "XSS=1" /D "XSS_SHELL=1" /D "_DEBUG" /D "WIN32" /D _X86_=1 /D "_WINDOWS" /D\
+CPP_PROJ=/nologo /MDd /W3 /GX /Z7 /Od /D "XSS=1" /D "XSS_SHELL=1" /D "XSS_DEBUG=1" /D "_DEBUG" /D "WIN32" /D _X86_=1 /D "_WINDOWS" /D\
  "_IEEE_LIBM" /D "XP_WIN" -I .\ /Fp"$(INTDIR)/fdlibm.pch" /YX /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/
 CPP_SBRS=.\.
 
-.c{$(CPP_OBJS)}.obj:
+.c{$(CPP_OBJS)}.obj: 
    $(CPP) $(CPP_PROJ) $<  
 
 .cpp{$(CPP_OBJS)}.obj:
@@ -749,6 +779,9 @@ DEP_CPP_JSAPI=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSAPI=\
@@ -803,6 +836,9 @@ DEP_CPP_JSAPI=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSAPI=\
@@ -835,6 +871,7 @@ DEP_CPP_JSARE=\
 	".\jsstddef.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSARE=\
@@ -857,6 +894,7 @@ DEP_CPP_JSARE=\
 	".\jsstddef.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSARE=\
@@ -905,6 +943,9 @@ DEP_CPP_JSARR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSARR=\
@@ -947,6 +988,9 @@ DEP_CPP_JSARR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSARR=\
@@ -998,6 +1042,7 @@ DEP_CPP_JSATO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSATO=\
@@ -1041,6 +1086,7 @@ DEP_CPP_JSATO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSATO=\
@@ -1091,6 +1137,7 @@ DEP_CPP_JSBOO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSBOO=\
@@ -1133,6 +1180,7 @@ DEP_CPP_JSBOO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSBOO=\
@@ -1187,6 +1235,7 @@ DEP_CPP_JSCNT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSCNT=\
@@ -1233,6 +1282,7 @@ DEP_CPP_JSCNT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSCNT=\
@@ -1285,6 +1335,7 @@ DEP_CPP_JSDAT=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDAT=\
@@ -1329,6 +1380,7 @@ DEP_CPP_JSDAT=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDAT=\
@@ -1381,6 +1433,7 @@ DEP_CPP_JSDBG=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDBG=\
@@ -1425,6 +1478,7 @@ DEP_CPP_JSDBG=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDBG=\
@@ -1456,6 +1510,7 @@ DEP_CPP_JSDHA=\
 	".\jsotypes.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDHA=\
@@ -1477,6 +1532,7 @@ DEP_CPP_JSDHA=\
 	".\jsotypes.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDHA=\
@@ -1507,6 +1563,7 @@ DEP_CPP_JSDTO=\
 	".\jsstddef.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDTO=\
@@ -1530,6 +1587,7 @@ DEP_CPP_JSDTO=\
 	".\jsstddef.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSDTO=\
@@ -1585,6 +1643,7 @@ DEP_CPP_JSEMI=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSEMI=\
@@ -1633,6 +1692,7 @@ DEP_CPP_JSEMI=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSEMI=\
@@ -1683,6 +1743,7 @@ DEP_CPP_JSEXN=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSEXN=\
@@ -1725,6 +1786,7 @@ DEP_CPP_JSEXN=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSEXN=\
@@ -1781,6 +1843,7 @@ DEP_CPP_JSFUN=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSFUN=\
@@ -1829,6 +1892,7 @@ DEP_CPP_JSFUN=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSFUN=\
@@ -1880,6 +1944,8 @@ DEP_CPP_JSGC_=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSGC_=\
@@ -1923,6 +1989,8 @@ DEP_CPP_JSGC_=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSGC_=\
@@ -1954,6 +2022,7 @@ DEP_CPP_JSHAS=\
 	".\jsotypes.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSHAS=\
@@ -1975,6 +2044,7 @@ DEP_CPP_JSHAS=\
 	".\jsotypes.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSHAS=\
@@ -1982,6 +2052,49 @@ NODEP_CPP_JSHAS=\
 	
 
 "$(INTDIR)\jshash.obj" : $(SOURCE) $(DEP_CPP_JSHAS) "$(INTDIR)"
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\xsstaint.c
+
+!IF  "$(CFG)" == "js - Win32 Release"
+
+DEP_CPP_XSSTAINT=\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\jspubtd.h"\
+	".\jsapi.h"\
+	".\jsgc.h"\
+	".\js.mak"\
+	{$(INCLUDE)}"\sys\types.h"\
+	
+NODEP_CPP_XSSTAINT=\
+	".\jsautocfg.h"\
+	
+"$(INTDIR)\xsstaint.obj" : $(SOURCE) $(DEP_CPP_XSSTAINT) "$(INTDIR)"
+
+!ELSEIF  "$(CFG)" == "js - Win32 Debug"
+
+DEP_CPP_XSSTAINT=\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\jspubtd.h"\
+	".\jsapi.h"\
+	".\jsgc.h"\
+	".\js.mak"\
+	{$(INCLUDE)}"\sys\types.h"\
+	
+NODEP_CPP_XSSTAINT=\
+	".\jsautocfg.h"\
+	".\prcvar.h"\
+	".\prlock.h"\
+	
+"$(INTDIR)\xsstaint.obj" : $(SOURCE) $(DEP_CPP_XSSTAINT) "$(INTDIR)"
 
 
 !ENDIF 
@@ -2029,6 +2142,9 @@ DEP_CPP_JSINT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSINT=\
@@ -2077,6 +2193,9 @@ DEP_CPP_JSINT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSINT=\
@@ -2124,6 +2243,7 @@ DEP_CPP_JSLOC=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLOC=\
@@ -2165,6 +2285,7 @@ DEP_CPP_JSLOC=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLOC=\
@@ -2194,6 +2315,7 @@ DEP_CPP_JSLOG=\
 	".\jsosdep.h"\
 	".\jsotypes.h"\
 	".\jstypes.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLOG=\
@@ -2211,6 +2333,7 @@ DEP_CPP_JSLOG=\
 	".\jsosdep.h"\
 	".\jsotypes.h"\
 	".\jstypes.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLOG=\
@@ -2236,6 +2359,7 @@ DEP_CPP_JSLON=\
 	".\jsosdep.h"\
 	".\jsotypes.h"\
 	".\jstypes.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLON=\
@@ -2253,6 +2377,7 @@ DEP_CPP_JSLON=\
 	".\jsosdep.h"\
 	".\jsotypes.h"\
 	".\jstypes.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSLON=\
@@ -2301,6 +2426,7 @@ DEP_CPP_JSMAT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSMAT=\
@@ -2343,6 +2469,7 @@ DEP_CPP_JSMAT=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSMAT=\
@@ -2395,6 +2522,7 @@ DEP_CPP_JSNUM=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSNUM=\
@@ -2439,6 +2567,7 @@ DEP_CPP_JSNUM=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSNUM=\
@@ -2495,6 +2624,9 @@ DEP_CPP_JSOBJ=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSOBJ=\
@@ -2543,6 +2675,9 @@ DEP_CPP_JSOBJ=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSOBJ=\
@@ -2599,6 +2734,7 @@ DEP_CPP_JSOPC=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSOPC=\
@@ -2647,6 +2783,7 @@ DEP_CPP_JSOPC=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSOPC=\
@@ -2702,6 +2839,7 @@ DEP_CPP_JSPAR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSPAR=\
@@ -2749,6 +2887,7 @@ DEP_CPP_JSPAR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSPAR=\
@@ -2778,6 +2917,7 @@ DEP_CPP_JSPRF=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSPRF=\
@@ -2797,6 +2937,7 @@ DEP_CPP_JSPRF=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSPRF=\
@@ -2848,6 +2989,7 @@ DEP_CPP_JSREG=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSREG=\
@@ -2893,6 +3035,7 @@ DEP_CPP_JSREG=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSREG=\
@@ -2947,6 +3090,7 @@ DEP_CPP_JSSCA=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCA=\
@@ -2993,6 +3137,7 @@ DEP_CPP_JSSCA=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCA=\
@@ -3041,6 +3186,7 @@ DEP_CPP_JSSCO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCO=\
@@ -3081,6 +3227,7 @@ DEP_CPP_JSSCO=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCO=\
@@ -3137,6 +3284,7 @@ DEP_CPP_JSSCR=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCR=\
@@ -3185,6 +3333,7 @@ DEP_CPP_JSSCR=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSCR=\
@@ -3238,6 +3387,9 @@ DEP_CPP_JSSTR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSTR=\
@@ -3283,6 +3435,9 @@ DEP_CPP_JSSTR=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\xssdbg.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSSTR=\
@@ -3311,6 +3466,7 @@ DEP_CPP_JSUTI=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSUTI=\
@@ -3329,6 +3485,7 @@ DEP_CPP_JSUTI=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSUTI=\
@@ -3376,6 +3533,7 @@ DEP_CPP_JSXDR=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSXDR=\
@@ -3417,6 +3575,7 @@ DEP_CPP_JSXDR=\
 	".\jstypes.h"\
 	".\jsutil.h"\
 	".\jsxdrapi.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JSXDR=\
@@ -3447,6 +3606,7 @@ DEP_CPP_PRMJT=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\TIMEB.H"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
@@ -3468,6 +3628,7 @@ DEP_CPP_PRMJT=\
 	".\jsprf.h"\
 	".\jstypes.h"\
 	".\prmjtime.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\TIMEB.H"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
@@ -3552,6 +3713,8 @@ DEP_CPP_JS_C42=\
 	".\jsstr.h"\
 	".\jstypes.h"\
 	".\jsutil.h"\
+	".\xsstaint.h"\
+	".\js.mak"\
 	{$(INCLUDE)}"\sys\types.h"\
 	
 NODEP_CPP_JS_C42=\

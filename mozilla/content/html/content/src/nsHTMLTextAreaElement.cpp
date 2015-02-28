@@ -70,6 +70,10 @@
 #include "nsReadableUtils.h"
 #include "nsITextContent.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 static NS_DEFINE_CID(kXULControllersCID,  NS_XULCONTROLLERS_CID);
 
 
@@ -388,7 +392,11 @@ nsHTMLTextAreaElement::SelectAll(nsIPresContext* aPresContext)
 NS_IMPL_STRING_ATTR(nsHTMLTextAreaElement, AccessKey, accesskey)
 NS_IMPL_INT_ATTR(nsHTMLTextAreaElement, Cols, cols)
 NS_IMPL_BOOL_ATTR(nsHTMLTextAreaElement, Disabled, disabled)
+#ifndef XSS /* original */
 NS_IMPL_STRING_ATTR(nsHTMLTextAreaElement, Name, name)
+#else /* XSS */
+NS_IMPL_STRING_ATTR_XSS(nsHTMLTextAreaElement, Name, name)
+#endif /* XSS */
 NS_IMPL_BOOL_ATTR(nsHTMLTextAreaElement, ReadOnly, readonly)
 NS_IMPL_INT_ATTR(nsHTMLTextAreaElement, Rows, rows)
 NS_IMPL_INT_ATTR(nsHTMLTextAreaElement, TabIndex, tabindex)
@@ -510,7 +518,28 @@ nsHTMLTextAreaElement::SetValueChanged(PRBool aValueChanged)
 NS_IMETHODIMP
 nsHTMLTextAreaElement::GetDefaultValue(nsAString& aDefaultValue)
 {
+#ifndef XSS /* original */
   return GetContentsAsText(aDefaultValue);
+#else /* XSS */
+	nsresult rv;
+	rv = GetContentsAsText(aDefaultValue);
+	// taint the returnvalue
+	{
+		nsCString xss_doc_uri;
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+		if (baseURI) {
+			baseURI->GetSpec(xss_doc_uri);
+		}	  
+		XSS_LOG("xsstaintstring nsHTMLTextAreaElement::GetDefaultValue: %s\n",
+			ToNewCString(
+			NS_LITERAL_STRING("'") +
+			aDefaultValue + 
+			NS_LITERAL_STRING("' ") + 
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));
+	} while (0);
+	aDefaultValue.xssSetTainted(XSS_TAINTED);
+	return rv;
+#endif /* XSS */
 }  
 
 NS_IMETHODIMP

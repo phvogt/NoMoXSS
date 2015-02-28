@@ -68,6 +68,11 @@
 #include "jsopcode.h"
 #include "jsregexp.h"
 #include "jsstr.h"
+#ifdef XSS /* include necessary headerfiles */
+#include "xsstaint.h"
+#include "xssdbg.h"
+#endif /* XSS */
+
 
 #if JS_HAS_REPLACE_LAMBDA
 #include "jsinterp.h"
@@ -2647,6 +2652,11 @@ js_ValueToString(JSContext *cx, jsval v)
 {
     JSObject *obj;
     JSString *str;
+#ifdef XSS /* get original type of jsval */
+	int xss_origtype = XSS_NOTYPE;
+	XSS_JSVAL_GET_ORIGTYPE(v,xss_origtype);
+#endif /* XSS */
+	
 
     if (JSVAL_IS_OBJECT(v)) {
         obj = JSVAL_TO_OBJECT(v);
@@ -2655,10 +2665,19 @@ js_ValueToString(JSContext *cx, jsval v)
         if (!OBJ_DEFAULT_VALUE(cx, obj, JSTYPE_STRING, &v))
             return NULL;
     }
+
     if (JSVAL_IS_STRING(v)) {
         str = JSVAL_TO_STRING(v);
     } else if (JSVAL_IS_INT(v)) {
         str = js_NumberToString(cx, JSVAL_TO_INT(v));
+#ifdef XSS /* handle xss-types */
+    } else if (xss_origtype == JSVAL_BOOLEAN) {
+        str = js_BooleanToString(cx, (JSBool) *JSVAL_TO_DOUBLE(v));
+    } else if (xss_origtype == JSVAL_DOUBLE) {
+        str = js_NumberToString(cx, *JSVAL_TO_DOUBLE(v));
+    } else if (xss_origtype == JSVAL_VOID) {
+        str = ATOM_TO_STRING(cx->runtime->atomState.typeAtoms[JSTYPE_VOID]);
+#endif /* XSS */
     } else if (JSVAL_IS_DOUBLE(v)) {
         str = js_NumberToString(cx, *JSVAL_TO_DOUBLE(v));
     } else if (JSVAL_IS_BOOLEAN(v)) {

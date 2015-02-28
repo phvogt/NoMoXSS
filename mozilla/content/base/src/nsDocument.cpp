@@ -128,6 +128,11 @@ static NS_DEFINE_CID(kDOMEventGroupCID, NS_DOMEVENTGROUP_CID);
 #include "nsICharsetAlias.h"
 static NS_DEFINE_CID(kCharsetAliasCID, NS_CHARSETALIAS_CID);
 
+#ifdef XSS
+#include "xsstaint.h"
+#include "prlog.h"
+#endif /* XSS */
+
 // Helper structs for the content->subdoc map
 
 class SubDocMapEntry : public PLDHashEntryHdr
@@ -851,6 +856,21 @@ nsDocument::GetLastModified(nsAString& aLastModified)
     // (or even the current time), fall back to what NS4.x returned.
     CopyASCIItoUCS2(NS_LITERAL_CSTRING("January 1, 1970 GMT"), aLastModified);
   }
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  if (mDocumentBaseURI) {
+		  mDocumentBaseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsDocument::GetLastModified: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aLastModified + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aLastModified.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return NS_OK;
 }
@@ -912,6 +932,21 @@ NS_IMETHODIMP
 nsDocument::GetReferrer(nsAString& aReferrer)
 {
   CopyUTF8toUTF16(mReferrer, aReferrer);
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  if (mDocumentBaseURI) {
+		  mDocumentBaseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsDocument::GetReferrer: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aReferrer + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aReferrer.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
   return NS_OK;
 }
 
@@ -2720,6 +2755,21 @@ NS_IMETHODIMP
 nsDocument::GetTitle(nsAString& aTitle)
 {
   aTitle.Assign(mDocumentTitle);
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  if (mDocumentBaseURI) {
+		  mDocumentBaseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsDocument::GetTitle: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aTitle + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aTitle.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return NS_OK;
 }

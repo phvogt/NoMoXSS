@@ -71,6 +71,10 @@
 #include "nsXULAtoms.h"
 #include "nsIDOMDocument.h"
 
+#ifdef XSS /* XSS */
+#include "prlog.h"
+#endif /* XSS */
+
 /**
  * Implementation of &lt;option&gt;
  */
@@ -306,6 +310,23 @@ nsHTMLOptionElement::GetValue(nsAString& aValue)
     GetText(aValue);
   }
 
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+	  if (baseURI) {
+		  baseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsHTMLOptionElement::GetValue: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aValue + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aValue.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
+
   return NS_OK;
 }
 
@@ -441,6 +462,23 @@ nsHTMLOptionElement::GetText(nsAString& aText)
   text = aText;
   text.CompressWhitespace(PR_TRUE, PR_TRUE);
   aText = text;
+
+#ifdef XSS /* XSS */
+  {
+	  nsCString xss_doc_uri;
+	  nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+	  if (baseURI) {
+		  baseURI->GetSpec(xss_doc_uri);
+	  }	  
+	  XSS_LOG("xsstaintstring nsHTMLOptionElement::GetText: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  aText + 
+		  NS_LITERAL_STRING("' ") + 
+		  NS_ConvertUTF8toUTF16(xss_doc_uri)));
+  } while (0);
+  aText.xssSetTainted(XSS_TAINTED);
+#endif /* XSS */
 
   return NS_OK;
 }

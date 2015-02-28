@@ -45,6 +45,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include "jspubtd.h"
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
 
 JS_BEGIN_EXTERN_C
 
@@ -144,6 +147,13 @@ JS_BEGIN_EXTERN_C
 #define JSVAL_ONE               INT_TO_JSVAL(1)
 #define JSVAL_FALSE             BOOLEAN_TO_JSVAL(JS_FALSE)
 #define JSVAL_TRUE              BOOLEAN_TO_JSVAL(JS_TRUE)
+
+#ifdef XSS /* XSS */
+
+/* definition to get the taint-structure of a JSGCThing-object */
+extern JS_PUBLIC_API(XSS_taint *) js_XSSGettaint(void *val);
+
+#endif /* XSS */
 
 /*
  * Microseconds since the epoch, midnight, January 1, 1970 UTC.  See the

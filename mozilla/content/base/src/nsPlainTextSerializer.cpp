@@ -57,6 +57,11 @@
 #include "nsCRT.h"
 #include "nsIParserService.h"
 
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#include "prlog.h"
+#endif /* XSS */
+
 static NS_DEFINE_CID(kLWBrkCID, NS_LWBRK_CID);
 
 #define PREF_STRUCTS "converter.html2txt.structs"
@@ -338,6 +343,18 @@ nsPlainTextSerializer::AppendText(nsIDOMText* aText,
       textstr.AssignWithConversion(frag->Get1b()+aStartOffset, length);
     }
   }
+#ifdef XSS /* XSS */
+  if (frag->xssGetTainted() == XSS_TAINTED)
+  {
+	  XSS_LOG("xsstaintstring nsPlainTextSerializer::AppendText: %s\n",
+		  ToNewCString(
+		  NS_LITERAL_STRING("'") +
+		  textstr +
+		  NS_LITERAL_STRING("'")
+		  ));
+  } while (0);
+  textstr.xssSetTainted(frag->xssGetTainted());
+#endif /* XSS */
 
   mOutputString = &aStr;
 
@@ -1642,6 +1659,20 @@ nsPlainTextSerializer::Write(const nsAString& aString)
   PRInt32 newline;
   
   PRInt32 totLen = aString.Length();
+
+#ifdef XSS /* XSS */
+  if (aString.xssGetTainted() == XSS_TAINTED) {
+	  {
+		  XSS_LOG("xsstaintstring nsPlainTextSerializer::Write: %s\n",
+			  ToNewCString(
+		      NS_LITERAL_STRING("'") +
+			  mCurrentLine +
+			  NS_LITERAL_STRING("' aString: ") +
+			  aString));
+	  } while (0);
+	  mCurrentLine.xssSetTainted(XSS_TAINTED);
+  }
+#endif /* XSS */
 
   // If the string is empty, do nothing:
   if (totLen <= 0) return;

@@ -56,6 +56,11 @@
 #include "nsIScriptError.h"
 #include "nsIStringBundle.h"
 
+
+#ifdef XSS /* XSS */
+#include "xsstaint.h"
+#endif /* XSS */
+
 //BIDI
 #include "nsBidiUtils.h"
 //end
@@ -87,6 +92,9 @@ public:
       mFormProcessor(aFormProcessor),
       mBidiOptions(aBidiOptions)
   {
+#ifdef XSS /* XSS */
+	xss_istainted = XSS_NOT_TAINTED;
+#endif /* XSS */
   };
   virtual ~nsFormSubmission()
   {
@@ -1475,3 +1483,4 @@ nsFormSubmission::ProcessValue(nsIDOMHTMLElement* aSource,
 
   return retval;
 }
+

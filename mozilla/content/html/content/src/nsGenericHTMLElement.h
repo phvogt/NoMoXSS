@@ -904,6 +904,82 @@ protected:
                    PR_TRUE);                                         \
   }
 
+#ifdef XSS /* XSS */
+/**
+ * A macro to implement the getter and setter for a given string
+ * valued content property. The method uses the generic GetAttr and
+ * SetAttr methods.
+ */
+#define NS_IMPL_STRING_ATTR_XSS(_class, _method, _atom)              \
+  NS_IMETHODIMP                                                      \
+  _class::Get##_method(nsAString& aValue)                            \
+  {                                                                  \
+    GetAttr(kNameSpaceID_None, nsHTMLAtoms::_atom, aValue);          \
+	{																 \
+		nsCString xss_doc_uri;										 \
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();					 \
+		if (baseURI) {												 \
+			baseURI->GetSpec(xss_doc_uri);							 \
+		}															 \
+		XSS_LOG("xsstaintstring " #_class "::" #_method ": %s\n",	 \
+			ToNewCString(											 \
+		    NS_LITERAL_STRING("'") +								 \
+			aValue +												 \
+			NS_LITERAL_STRING("' ") +								 \
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));					 \
+	} while (0);													 \
+	aValue.xssSetTainted(XSS_TAINTED);								 \
+                                                                     \
+    return NS_OK;                                                    \
+  }                                                                  \
+  NS_IMETHODIMP                                                      \
+  _class::Set##_method(const nsAString& aValue)                      \
+  {                                                                  \
+    return SetAttr(kNameSpaceID_None, nsHTMLAtoms::_atom, aValue,    \
+                   PR_TRUE);                                         \
+  }
+
+/**
+ * A macro to implement the getter and setter for a given string
+ * valued content property. The method uses the generic GetAttr and
+ * SetAttr methods.
+ */
+#define NS_IMPL_URI_ATTR_XSS_HREFPARAM(_class, _method, _atom)       \
+  NS_IMETHODIMP                                                      \
+  _class::Get##_method(nsAString& aValue)                            \
+  {                                                                  \
+    GetURIAttr(nsHTMLAtoms::_atom, aValue);                          \
+    /* only taint if the url contains a '?'. i.e. there are */       \
+	/* parameters */												 \
+    if (aValue.FindChar('?') >= 0) {							     \
+		{															 \
+			nsCString xss_doc_uri;									 \
+			nsCOMPtr<nsIURI> baseURI = GetBaseURI();				 \
+			if (baseURI) {											 \
+				baseURI->GetSpec(xss_doc_uri);						 \
+			}														 \
+			XSS_LOG("xsstaintstring " #_class "::" #_method ": %s\n",\
+				ToNewCString(										 \
+				NS_LITERAL_STRING("'") +							 \
+				aValue +											 \
+				NS_LITERAL_STRING("' ") +							 \
+				NS_ConvertUTF8toUTF16(xss_doc_uri)));				 \
+		} while (0);												 \
+	  aValue.xssSetTainted(XSS_TAINTED);							 \
+    }																 \
+                                                                     \
+    return NS_OK;                                                    \
+  }                                                                  \
+  NS_IMETHODIMP                                                      \
+  _class::Set##_method(const nsAString& aValue)                      \
+  {                                                                  \
+    return SetAttr(kNameSpaceID_None, nsHTMLAtoms::_atom, aValue,    \
+                   PR_TRUE);                                         \
+  }
+
+#endif /* XSS */
+
+
 /**
  * A macro to implement the getter and setter for a given string
  * valued content property with a default value.
@@ -988,6 +1064,47 @@ protected:
     return SetAttr(kNameSpaceID_None, nsHTMLAtoms::_atom, aValue,   \
                    PR_TRUE);                                        \
   }
+
+#ifdef XSS /* XSS */
+/**
+ * A macro to implement the getter and setter for a given content
+ * property that needs to return a URI in string form.  The method
+ * uses the generic GetAttr and SetAttr methods.  This macro is much
+ * like the NS_IMPL_STRING_ATTR macro, except we make sure the URI is
+ * absolute.
+ */
+#define NS_IMPL_URI_ATTR_XSS(_class, _method, _atom)                \
+  NS_IMETHODIMP                                                     \
+  _class::Get##_method(nsAString& aValue)                           \
+  {                                                                 \
+    GetURIAttr(nsHTMLAtoms::_atom, aValue);                         \
+    /* only taint location, if it contains a '?' */					\
+	if (aValue.FindChar('?') >= 0) {								\
+	{																\
+		nsCString xss_doc_uri;										\
+		nsCOMPtr<nsIURI> baseURI = GetBaseURI();					\
+		if (baseURI) {												\
+			baseURI->GetSpec(xss_doc_uri);							\
+		}															\
+		XSS_LOG("xsstaintstring " #_class "::" #_method ": %s\n",	\
+			ToNewCString(											\
+			NS_LITERAL_STRING("'") +								\
+			aValue +												\
+			NS_LITERAL_STRING("' ") +								\
+			NS_ConvertUTF8toUTF16(xss_doc_uri)));					\
+	} while (0);													\
+		aValue.xssSetTainted(XSS_TAINTED);							\
+	}																\
+                                                                    \
+    return NS_OK;                                                   \
+  }                                                                 \
+  NS_IMETHODIMP                                                     \
+  _class::Set##_method(const nsAString& aValue)                     \
+  {                                                                 \
+    return SetAttr(kNameSpaceID_None, nsHTMLAtoms::_atom, aValue,   \
+                   PR_TRUE);                                        \
+  }
+#endif /* XSS */
 
 /**
  * QueryInterface() implementation helper macros

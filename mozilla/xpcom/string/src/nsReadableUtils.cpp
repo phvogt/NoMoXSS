@@ -32,6 +32,11 @@ LossyCopyUTF16toASCII( const nsAString& aSource, nsACString& aDest )
   {
     aDest.Truncate();
     LossyAppendUTF16toASCII(aSource, aDest);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
 NS_COM
@@ -40,6 +45,11 @@ CopyASCIItoUTF16( const nsACString& aSource, nsAString& aDest )
   {
     aDest.Truncate();
     AppendASCIItoUTF16(aSource, aDest);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
 NS_COM
@@ -112,6 +122,12 @@ LossyAppendUTF16toASCII( const nsAString& aSource, nsACString& aDest )
     LossyConvertEncoding<PRUnichar, char> converter(dest.get());
     
     copy_string(aSource.BeginReading(fromBegin), aSource.EndReading(fromEnd), converter);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
+
   }
 
 NS_COM
@@ -132,6 +148,11 @@ AppendASCIItoUTF16( const nsACString& aSource, nsAString& aDest )
     LossyConvertEncoding<char, PRUnichar> converter(dest.get());
 
     copy_string(aSource.BeginReading(fromBegin), aSource.EndReading(fromEnd), converter);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
 NS_COM
@@ -160,6 +181,12 @@ AppendUTF16toUTF8( const nsAString& aSource, nsACString& aDest )
     CalculateUTF8Size calculator;
     copy_string(aSource.BeginReading(source_start),
                 aSource.EndReading(source_end), calculator);
+
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
 
     PRUint32 count = calculator.Size();
 
@@ -217,6 +244,11 @@ AppendUTF8toUTF16( const nsACString& aSource, nsAString& aDest )
                 aSource.EndReading(source_end), calculator);
 
     PRUint32 count = calculator.Length();
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
 
     if (count)
       {
@@ -676,6 +708,11 @@ ToUpperCase( const nsACString& aSource, nsACString& aDest )
     aDest.SetLength(aSource.Length());
     CopyToUpperCase converter(aDest.BeginWriting(toBegin));
     copy_string(aSource.BeginReading(fromBegin), aSource.EndReading(fromEnd), converter);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
   }
 
   /**
@@ -764,6 +801,12 @@ ToLowerCase( const nsACString& aSource, nsACString& aDest )
     aDest.SetLength(aSource.Length());
     CopyToLowerCase converter(aDest.BeginWriting(toBegin));
     copy_string(aSource.BeginReading(fromBegin), aSource.EndReading(fromEnd), converter);
+#ifdef XSS /* XSS */
+	if (aSource.xssGetTainted() == XSS_TAINTED) {
+		aDest.xssSetTainted(XSS_TAINTED);
+	}
+#endif /* XSS */
+
   }
 
 template <class StringT, class IteratorT, class Comparator>
