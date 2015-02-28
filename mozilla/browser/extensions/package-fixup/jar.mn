@@ -1,0 +1,8 @@
+classic.jar:
+        skin/classic/global/plugins.css                                       (../../../themes/classic/global/plugins.css)
+
+comm.jar:
+*       content/communicator/contents.rdf                                     (../../../xpfe/communicator/resources/content/contents.rdf)
+
+toolkit.jar:
+        content/global/plugins.html                                           (../../../xpfe/global/resources/content/plugins.html)

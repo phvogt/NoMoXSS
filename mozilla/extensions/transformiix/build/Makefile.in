@@ -1,0 +1,86 @@
+# 
+# The contents of this file are subject to the Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of
+# the License at http://www.mozilla.org/MPL/
+# 
+# Software distributed under the License is distributed on an "AS
+# IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# rights and limitations under the License.
+# 
+# The Original Code is Transformiix XSLT Processor.
+# 
+# The Initial Developer of the Original Code is Axel Hecht.
+# Portions created by Axel Hecht are  Copyright (C) Axel Hecht.
+# All Rights Reserved.
+# 
+# Contributor(s):
+#	Axel Hecht <axel@pike.org>
+# 
+
+DEPTH           = ../../..
+topsrcdir       = @top_srcdir@
+srcdir          = @srcdir@
+VPATH           = @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+MODULE = transformiix
+LIBRARY_NAME = transformiix
+EXPORT_LIBRARY = 1
+IS_COMPONENT = 1
+MODULE_NAME = TransformiixModule
+ifneq ($(OS_ARCH),WINNT)
+SHORT_LIBNAME	= t8iix
+endif
+
+PACKAGE_FILE = transformiix.pkg
+
+REQUIRES	= xpcom \
+		  string \
+		  dom \
+		  content \
+		  widget \
+		  necko \
+		  js \
+		  xpconnect \
+		  caps \
+		  locale \
+		  unicharutil \
+		  htmlparser \
+		  webshell \
+		  docshell \
+		  layout \
+		  uconv \
+		  windowwatcher \
+		  mimetype \
+		  intl \
+		  htmlparser \
+		  $(NULL)
+
+
+CPPSRCS = XSLTProcessorModule.cpp
+
+SHARED_LIBRARY_LIBS = \
+		$(DIST)/lib/$(LIB_PREFIX)txbase_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxml_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxmlparser_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxpath_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxslt_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxsltfunctions_s.$(LIB_SUFFIX) \
+		$(DIST)/lib/$(LIB_PREFIX)txxsltutil_s.$(LIB_SUFFIX) \
+		$(NULL)
+
+EXTRA_DSO_LDOPTS += \
+  $(MOZ_UNICHARUTIL_LIBS) \
+  $(MOZ_COMPONENT_LIBS) \
+  $(MOZ_JS_LIBS) \
+  $(NULL)
+
+include $(topsrcdir)/config/rules.mk
+
+INCLUDES += -I$(srcdir)/../source/xslt -I$(srcdir)/../source/base \
+  -I$(srcdir)/../source/xml -I$(srcdir)/../source/xml/parser \
+  -I$(srcdir)/../source/xpath -I$(srcdir)/../source/xslt/util \
+  -I$(srcdir)/../source/xslt/functions

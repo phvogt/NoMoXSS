@@ -1,0 +1,108 @@
+#
+# The contents of this file are subject to the Netscape Public
+# License Version 1.1 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of
+# the License at http://www.mozilla.org/NPL/
+#
+# Software distributed under the License is distributed on an "AS
+# IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# rights and limitations under the License.
+#
+# The Original Code is mozilla.org code.
+#
+# The Initial Developer of the Original Code is Netscape
+# Communications Corporation.  Portions created by Netscape are
+# Copyright (C) 1998 Netscape Communications Corporation. All
+# Rights Reserved.
+#
+# Contributor(s): 
+#
+
+DEPTH		= ../../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+MODULE		= editor
+LIBRARY_NAME	= composer
+EXPORT_LIBRARY = 1
+IS_COMPONENT	= 1
+MODULE_NAME	= nsComposerModule
+
+PACKAGE_FILE = composer.pkg
+
+REQUIRES	= xpcom \
+		  string \
+		  unicharutil \
+		  dom \
+		  js \
+		  layout \
+		  content \
+		  uriloader \
+		  txmgr \
+		  necko \
+		  pref \
+		  webshell \
+		  docshell \
+		  gfx \
+		  widget \
+		  xuldoc \
+		  txtsvc \
+		  imglib2 \
+		  commandhandler \
+		  composer \
+		  appshell \
+		  $(NULL)
+
+CPPSRCS  = \
+           nsComposeTxtSrvFilter.cpp            \
+           nsComposerController.cpp       \
+           nsComposerCommands.cpp         \
+           nsComposerDocumentCommands.cpp \
+           nsComposerRegistration.cpp     \
+           nsEditingSession.cpp	          \
+           nsComposerCommandsUpdater.cpp  \
+           nsEditorService.cpp            \
+           nsEditorSpellCheck.cpp         \
+           $(NULL)
+
+EXTRA_DSO_LDOPTS += \
+		$(MOZ_UNICHARUTIL_LIBS) \
+		$(MOZ_COMPONENT_LIBS)
+
+include $(topsrcdir)/config/rules.mk
+
+INCLUDES        += -I../../libeditor/base/src
+
+_FILES = \
+	$(srcdir)/res/EditorOverride.css \
+	$(srcdir)/res/grabber.gif \
+	$(srcdir)/res/table-add-column-after-active.gif \
+	$(srcdir)/res/table-add-column-after-hover.gif \
+	$(srcdir)/res/table-add-column-after.gif \
+	$(srcdir)/res/table-add-column-before-active.gif \
+	$(srcdir)/res/table-add-column-before-hover.gif \
+	$(srcdir)/res/table-add-column-before.gif \
+	$(srcdir)/res/table-add-row-after-active.gif \
+	$(srcdir)/res/table-add-row-after-hover.gif \
+	$(srcdir)/res/table-add-row-after.gif \
+	$(srcdir)/res/table-add-row-before-active.gif \
+	$(srcdir)/res/table-add-row-before-hover.gif \
+	$(srcdir)/res/table-add-row-before.gif \
+	$(srcdir)/res/table-remove-column-active.gif \
+	$(srcdir)/res/table-remove-column-hover.gif \
+	$(srcdir)/res/table-remove-column.gif \
+	$(srcdir)/res/table-remove-row-active.gif \
+	$(srcdir)/res/table-remove-row-hover.gif \
+	$(srcdir)/res/table-remove-row.gif \
+	$(NULL)
+
+libs::
+	$(INSTALL) $(_FILES) $(DIST)/bin/res
+
+install::
+	$(SYSINSTALL) $(IFLAGS1) $(_FILES) $(DESTDIR)$(mozappdir)/res
+

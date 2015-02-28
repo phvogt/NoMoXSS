@@ -1,0 +1,6 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+        locale/en-US/global/layout/HtmlForm.properties (/toolkit/locales/en-US/chrome/global/layout/HtmlForm.properties)
+#endif
+
+

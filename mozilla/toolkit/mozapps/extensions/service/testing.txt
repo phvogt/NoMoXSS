@@ -1,0 +1,10 @@
+To test VersionCheck locally:
+
+1) You need mysql set up and running on localhost with a table structure that matches umo
+2) Uncomment out main() in VersionCheck.java
+3) Compile the files with:
+   javac -d . *.java
+4) Run using this classpath:
+   java -cp .;"C:\Program Files\Apache Group\Tomcat 5.0\webapps\axis\WEB-INF\lib\mysql-connector.jar" org.mozilla.update.extensions.VersionCheck
+
+5) provided everything is set up properly, you should get the update URL for an extension echoed to the console

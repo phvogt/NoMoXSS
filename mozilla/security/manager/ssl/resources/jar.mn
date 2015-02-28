@@ -1,0 +1,8 @@
+pipnss.jar:
+*   content/pipnss/contents.rdf             (content/contents.rdf)
+
+#ifndef MOZ_XUL_APP
+en-US.jar:
+* locale/en-US/pipnss/contents.rdf      (/toolkit/locales/en-US/chrome/pipnss/contents.rdf)
+  locale/en-US/pipnss/pipnss.properties (/toolkit/locales/en-US/chrome/pipnss/pipnss.properties)
+#endif

@@ -1,0 +1,24 @@
+. $topsrcdir/browser/config/mozconfig
+CC=/usr/bin/gcc-3.4
+CXX=/usr/bin/g++-3.4
+# CPP=cpp
+# AS=as
+# LD=ld
+mk_add_options MOZ_MAKE_FLAGS=-j4
+mk_add_options MOZ_OBJDIR=$topsrcdir/firefox_obj_dir
+ac_add_options --disable-accessibility
+ac_add_options --enable-debug
+ac_add_options --disable-optimize
+ac_add_options --enable-cpp-rtti
+ac_add_options --disable-dtd-debug
+ac_add_options --enable-x11-shm
+ac_add_options --enable-ender-lite
+ac_add_options --disable-mailnews
+ac_add_options --enable-default-toolkit=gtk2
+ac_add_options --enable-xft
+ac_add_options --disable-shared
+ac_add_options --enable-static
+
+# GLIB_PREFIX=d:/mozilla-src/vc71
+# LIBIDL_PREFIX=d:/mozilla-src/vc71
+

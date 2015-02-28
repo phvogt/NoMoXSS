@@ -1,0 +1,6 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+  locale/en-US/global/css.properties (/toolkit/locales/en-US/chrome/global/css.properties)
+#endif
+
+

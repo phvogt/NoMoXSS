@@ -1,0 +1,15 @@
+. $topsrcdir/browser/config/mozconfig
+# CC=gcc
+# CXX=g++
+# CPP=cpp
+# AS=as
+# LD=ld
+ac_add_options --disable-accessibility
+ac_add_options --enable-debug
+ac_add_options --disable-optimize
+GLIB_PREFIX=d:/mozilla-src/vc71
+LIBIDL_PREFIX=d:/mozilla-src/vc71
+#CC=cl 
+#CXX=cl 
+#CFLAGS=/CLR
+#CXXFLAGS=/CLR

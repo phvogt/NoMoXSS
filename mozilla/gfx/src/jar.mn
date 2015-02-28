@@ -1,0 +1,4 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+    locale/en-US/global/printdialog.properties (/toolkit/locales/en-US/chrome/global/printdialog.properties)
+#endif

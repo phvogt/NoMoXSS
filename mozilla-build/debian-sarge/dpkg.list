@@ -1,0 +1,354 @@
+Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Installed/Config-files/Unpacked/Failed-config/Half-installed
+|/ Err?=(none)/Hold/Reinst-required/X=both-problems (Status,Err: uppercase=bad)
+||/ Name           Version        Description
++++-==============-==============-============================================
+ii  adduser        3.63           Add and remove users and groups
+ii  akode          3.3.2-1        akode arts plugin
+ii  apt            0.5.28.6       Advanced front-end for dpkg
+ii  apt-utils      0.5.28.6       APT utility programs
+ii  aptitude       0.2.15.9-2     terminal-based apt frontend
+ii  aspell-en      6.0-0-3        English dictionary for GNU Aspell
+ii  at             3.1.8-11       Delayed job execution and batch processing
+ii  base-config    2.53.10.3      Debian base system configurator
+ii  base-files     3.1.2          Debian base system miscellaneous files
+ii  base-passwd    3.5.9          Debian base system master password and group
+ii  bash           2.05b-26       The GNU Bourne Again SHell
+ii  bc             1.06-15        The GNU bc arbitrary precision calculator la
+ii  binutils       2.15-6         The GNU assembler, linker and binary utiliti
+ii  bsdmainutils   6.0.17         collection of more utilities from FreeBSD
+ii  bsdutils       2.12p-4sarge2  Basic utilities from 4.4BSD-Lite
+ii  bzip2          1.0.2-7        high-quality block-sorting file compressor -
+ii  console-common 0.7.49         Basic infrastructure for text console config
+ii  console-data   2002.12.04dbs- Keymaps, fonts, charset maps, fallback table
+ii  console-tools  0.2.3dbs-56    Linux console and font utilities
+ii  coreutils      5.2.1-2        The GNU core utilities
+ii  cpio           2.5-1.3        GNU cpio -- a program to manage archives of 
+ii  cpp            3.3.5-3        The GNU C preprocessor (cpp)
+ii  cpp-3.3        3.3.5-13       The GNU C preprocessor
+ii  cpp-3.4        3.4.3-13sarge1 The GNU C preprocessor
+ii  cramfsprogs    1.1-6          Tools for CramFs (Compressed ROM File System
+ii  cron           3.0pl1-86      management of regular background processing
+ii  dash           0.5.2-5        The Debian Almquist Shell
+ii  debconf        1.4.30.13      Debian configuration management system
+ii  debconf-i18n   1.4.30.13      full internationalization support for debcon
+ii  debconf-utils  1.4.30.13      debconf utilities
+ii  debianutils    2.8.4          Miscellaneous utilities specific to Debian
+ii  defoma         0.11.8-0.1     Debian Font Manager -- automatic font config
+ii  dhcp-client    2.0pl5-19.1sar DHCP Client
+ii  dictionaries-c 0.25.12        Common utilities for spelling dictionary too
+ii  diff           2.8.1-11       File comparison utilities
+ii  discover1      1.7.7          hardware identification system
+ii  discover1-data 1.2005.01.08   hardware lists for libdiscover1
+ii  dpkg           1.10.28        Package maintenance system for Debian
+ii  dselect        1.10.28        a user tool to manage Debian packages
+ii  e2fslibs       1.37-2sarge1   ext2 filesystem libraries
+ii  e2fsprogs      1.37-2sarge1   ext2 file system utilities and libraries
+ii  ed             0.2-20         The classic unix line editor
+ii  eject          2.0.13deb-8sar ejects CDs and operates CD-Changers under Li
+ii  enscript       1.6.4-7        Converts ASCII text to Postscript, HTML, RTF
+ii  esound-clients 0.2.35-2       Enlightened Sound Daemon - clients
+ii  esound-common  0.2.35-2       Enlightened Sound Daemon - Common files
+ii  exim4          4.50-8sarge2   metapackage to ease exim MTA (v4) installati
+ii  exim4-base     4.50-8sarge2   support files for all exim MTA (v4) packages
+ii  exim4-config   4.50-8sarge2   configuration for the exim MTA (v4)
+ii  exim4-daemon-l 4.50-8sarge2   lightweight exim MTA (v4) daemon
+ii  fam            2.7.0-6sarge1  File Alteration Monitor
+ii  fdutils        5.4-20040228-1 Linux floppy utilities
+ii  file           4.12-1sarge2   Determines file type using "magic" numbers
+ii  findutils      4.1.20-6       utilities for finding files--find, xargs, an
+ii  fontconfig     2.3.1-2        generic font configuration library
+ii  g++-3.4        3.4.3-13sarge1 The GNU C++ compiler
+ii  gcc            3.3.5-3        The GNU C compiler
+ii  gcc-3.3        3.3.5-13       The GNU C compiler
+ii  gcc-3.3-base   3.3.5-13       The GNU Compiler Collection (base package)
+ii  gcc-3.4        3.4.3-13sarge1 The GNU C compiler
+ii  gcc-3.4-base   3.4.3-13sarge1 The GNU Compiler Collection (base package)
+ii  gettext-base   0.14.4-2       GNU Internationalization utilities for the b
+rc  gpm            1.19.6-19sarge General Purpose Mouse Interface
+ii  grep           2.5.1.ds1-4    GNU grep, egrep and fgrep
+ii  groff-base     1.18.1.1-7     GNU troff text-formatting system (base syste
+ii  grub           0.95+cvs200406 GRand Unified Bootloader
+ii  gs             8.01-6         Transitional package
+ii  gs-common      0.3.7          Common files for different Ghostscript relea
+ii  gs-gpl         8.01-6         The GPL Ghostscript PostScript interpreter
+ii  gsfonts        8.14+v8.11+urw Fonts for the Ghostscript interpreter(s)
+ii  gzip           1.3.5-10sarge2 The GNU compression utility
+ii  hicolor-icon-t 0.8-1          default fallback theme for FreeDesktop.org i
+ii  hostname       2.13           A utility to set/show the host name or domai
+ii  hotplug        0.0.20040329-2 Linux Hotplug Scripts
+ii  ifupdown       0.6.7          high level tools to configure network interf
+ii  info           4.7-2.2sarge2  Standalone GNU Info documentation browser
+ii  initrd-tools   0.1.81.1       tools to create initrd image for prepackaged
+ii  initscripts    2.86.ds1-1     Standard scripts needed for booting and shut
+ii  ipchains       1.3.10-15      Network firewalling for Linux 2.2.x
+ii  iptables       1.2.11-10      Linux kernel 2.4+ iptables administration to
+ii  iputils-ping   20020927-2     Tools to test the reachability of network ho
+ii  jackd          0.99.0-6       JACK Audio Connection Kit (server and exampl
+ii  kappfinder     3.3.2-1sarge3  KDE Application Finder
+ii  kate           3.3.2-1sarge3  KDE Advanced Text Editor
+ii  kcontrol       3.3.2-1sarge3  KDE Control Center
+ii  kdebase        3.3.2-1sarge3  KDE Base metapackage
+ii  kdebase-bin    3.3.2-1sarge3  KDE Base (binaries)
+ii  kdebase-data   3.3.2-1sarge3  KDE Base (shared data)
+ii  kdebase-kio-pl 3.3.2-1sarge3  KDE I/O Slaves
+ii  kdelibs-bin    3.3.2-6.4      KDE core binaries
+ii  kdelibs-data   3.3.2-6.4      KDE core shared data
+ii  kdelibs4       3.3.2-6.4      KDE core libraries
+ii  kdepasswd      3.3.2-1sarge3  KDE password changer
+ii  kdeprint       3.3.2-1sarge3  KDE Print
+ii  kdesktop       3.3.2-1sarge3  KDE Desktop
+ii  kdm            3.3.2-1sarge3  KDE Display Manager
+ii  kernel-image-2 101sarge1      Linux kernel image for version 2.4 on PPro/C
+ii  kernel-image-2 2.4.27-10sarge Linux kernel image for version 2.4.27 on 386
+ii  kernel-image-2 2.4.27-10sarge Linux kernel image for version 2.4.27 on PPr
+ii  kfind          3.3.2-1sarge3  KDE File Find Utility
+ii  khelpcenter    3.3.2-1sarge3  KDE Help Center
+ii  kicker         3.3.2-1sarge3  KDE Desktop Panel
+ii  klipper        3.3.2-1sarge3  KDE Clipboard
+ii  klogd          1.4.1-17       Kernel Logging Daemon
+ii  kmenuedit      3.3.2-1sarge3  KDE Menu Editor
+ii  konqueror      3.3.2-1sarge3  KDE's advanced File Manager, Web Browser and
+ii  konqueror-nspl 3.3.2-1sarge3  Netscape plugin support for Konqueror
+ii  konsole        3.3.2-1sarge3  KDE X terminal emulator
+ii  kpager         3.3.2-1sarge3  KDE Desktop Pager
+ii  kpersonalizer  3.3.2-1sarge3  KDE Personalizer
+ii  kregexpeditor  3.3.2-1        graphical regular expression editor plugin
+ii  ksmserver      3.3.2-1sarge3  KDE Session Manager
+ii  ksplash        3.3.2-1sarge3  KDE Splash Screen
+ii  ksysguard      3.3.2-1sarge3  KDE System Guard
+ii  ksysguardd     3.3.2-1sarge3  KDE System Guard Daemon
+ii  ktip           3.3.2-1sarge3  Kandalf's Useful Tips
+ii  kwin           3.3.2-1sarge3  KDE Window Manager
+ii  less           382-1          Pager program similar to more
+ii  libacl1        2.2.23-1       Access control list shared library
+ii  libart-2.0-2   2.3.17-1       Library of functions for 2D graphics - runti
+ii  libarts1       1.3.2-3        aRts Sound system
+ii  libartsc0      1.3.2-3        aRts Sound system C support library
+ii  libasound2     1.0.8-3        ALSA library
+ii  libaspell15    0.60.2+2005012 The GNU Aspell spell-checker runtime toolkit
+ii  libatk1.0-0    1.8.0-4        The ATK accessibility toolkit
+ii  libatk1.0-data 1.8.0-4        Common files for the ATK accessibility toolk
+ii  libatk1.0-dev  1.8.0-4        Development files for the ATK accessibility 
+ii  libattr1       2.4.16-1       Extended attribute shared library
+ii  libaudio2      1.7-2sarge1    The Network Audio System (NAS). (shared libr
+ii  libaudiofile0  0.2.6-6        Open-source version of SGI's audiofile libra
+ii  libblkid1      1.37-2sarge1   block device id library
+ii  libbz2-1.0     1.0.2-7        high-quality block-sorting file compressor l
+ii  libc6          2.3.2.ds1-22sa GNU C Library: Shared libraries and Timezone
+ii  libc6-dev      2.3.2.ds1-22sa GNU C Library: Development Libraries and Hea
+ii  libcap1        1.10-14        support for getting/setting POSIX.1e capabil
+ii  libcomerr2     1.37-2sarge1   common error description library
+ii  libconsole     0.2.3dbs-56    Shared libraries for Linux console and font 
+ii  libcupsys2-gnu 1.1.23-10sarge Common UNIX Printing System(tm) - libs
+ii  libdb1-compat  2.1.3-7        The Berkeley database routines [glibc 2.0/2.
+ii  libdb3         3.2.9-22       Berkeley v3 Database Libraries [runtime]
+ii  libdb4.2       4.2.52-18      Berkeley v4.2 Database Libraries [runtime]
+ii  libdiscover1   1.7.7          hardware identification library
+ii  libdps1        4.3.0.dfsg.1-1 Display PostScript (DPS) client library
+ii  libesd0        0.2.35-2       Enlightened Sound Daemon - Shared libraries
+ii  libexpat1      1.95.8-3       XML parsing C library - runtime library
+ii  libexpat1-dev  1.95.8-3       XML parsing C library - development kit
+ii  libfam0c102    2.7.0-6sarge1  client library to control the FAM daemon
+ii  libflac6       1.1.1-5sarge1  Free Lossless Audio Codec - runtime C librar
+ii  libfontconfig1 2.3.1-2        generic font configuration library (shared l
+ii  libfontconfig1 2.3.1-2        generic font configuration library (developm
+ii  libfreetype6   2.1.7-8        FreeType 2 font engine, shared library files
+ii  libfreetype6-d 2.1.7-8        FreeType 2 font engine, development files
+ii  libft-perl     1.2-14         Perl module for the FreeType library
+ii  libgcc1        3.4.3-13sarge1 GCC support library
+ii  libgcrypt11    1.2.0-11.1     LGPL Crypto library - runtime library
+ii  libgdbm3       1.8.3-2        GNU dbm database routines (runtime version)
+ii  libgimpprint1  4.2.7-10       The Gimp-Print printer driver library
+ii  libglib2.0-0   2.6.4-1        The GLib library of C routines
+ii  libglib2.0-dat 2.6.4-1        Common files for GLib library
+ii  libglib2.0-dev 2.6.4-1        Development files for the GLib library
+ii  libgnutls11    1.0.16-13.2sar GNU TLS library - runtime library
+ii  libgpg-error0  1.0-1          library for common error values and messages
+ii  libgtk2.0-0    2.6.4-3.2      The GTK+ graphical user interface library
+ii  libgtk2.0-bin  2.6.4-3.2      The programs for the GTK+ graphical user int
+ii  libgtk2.0-comm 2.6.4-3.2      Common files for the GTK+ graphical user int
+ii  libgtk2.0-dev  2.6.4-3.2      Development files for the GTK+ library
+ii  libice-dev     4.3.0.dfsg.1-1 Inter-Client Exchange library development fi
+ii  libice6        4.3.0.dfsg.1-1 Inter-Client Exchange library
+ii  libidl-dev     0.8.5-1        development files for programs that use libI
+ii  libidl0        0.8.5-1        library for parsing CORBA IDL files
+ii  libidn11       0.5.13-1.0     GNU libidn library, implementation of IETF I
+ii  libjack0.80.0- 0.99.0-6       JACK Audio Connection Kit (libraries)
+ii  libjasper-1.70 1.701.0-2      The JasPer JPEG-2000 runtime library
+ii  libjpeg62      6b-10          The Independent JPEG Group's JPEG runtime li
+ii  libkonq4       3.3.2-1sarge3  Core libraries for KDE's file manager
+ii  libkrb53       1.3.6-2sarge6  MIT Kerberos runtime libraries
+ii  liblcms1       1.13-1         Color management library
+ii  libldap2       2.1.30-8       OpenLDAP libraries
+ii  liblocale-gett 1.01-17        Using libc functions for internationalizatio
+ii  liblockfile1   1.06           NFS-safe locking library, includes dotlockfi
+ii  liblzo1        1.08-1.2       A real-time data compression library
+ii  libmad0        0.15.1b-1.1    MPEG audio decoder library
+ii  libmagic1      4.12-1sarge2   File type determination library using "magic
+ii  libmng1        1.0.8-1        Multiple-image Network Graphics library
+ii  libncurses5    5.4-4          Shared libraries for terminal handling
+ii  libnetpbm10    10.0-8sarge3   Shared libraries for netpbm
+ii  libnewt0.51    0.51.6-20      Not Erik's Windowing Toolkit - text mode win
+ii  libogg0        1.1.2-1        Ogg Bitstream Library
+ii  liboggflac1    1.1.1-5sarge1  Free Lossless Audio Codec - runtime C librar
+ii  libopencdk8    0.5.5-10       Open Crypto Development Kit (OpenCDK) (runti
+ii  libopenexr2    1.2.2-2        runtime files for the OpenEXR image library
+ii  libpam-modules 0.76-22        Pluggable Authentication Modules for PAM
+ii  libpam-runtime 0.76-22        Runtime support for the PAM library
+ii  libpam0g       0.76-22        Pluggable Authentication Modules library
+ii  libpango1.0-0  1.8.1-1        Layout and rendering of internationalized te
+ii  libpango1.0-co 1.8.1-1        Modules and configuration files for the Pang
+ii  libpango1.0-de 1.8.1-1        Development files for the Pango
+ii  libpaper-utils 1.1.14-3       Library for handling paper characteristics (
+ii  libpaper1      1.1.14-3       Library for handling paper characteristics
+ii  libpcap0.7     0.7.2-7        System interface for user-level packet captu
+ii  libpcre3       4.5+7.4-2      Perl 5 Compatible Regular Expression Library
+ii  libperl5.8     5.8.4-8sarge6  Shared Perl library
+ii  libpng12-0     1.2.8rel-1     PNG library - runtime
+ii  libpopt0       1.7-5          lib for parsing cmdline parameters
+ii  libqt3c102-mt  3.3.4-3sarge3  Qt GUI Library (Threaded runtime version), V
+ii  libraw1394-5   0.10.1-1.1     library for direct access to IEEE 1394 bus (
+ii  libreadline4   4.3-11         GNU readline and history libraries, run-time
+ii  libreadline5   5.0-10         GNU readline and history libraries, run-time
+ii  libsamplerate0 0.1.1-2        audio rate conversion library
+ii  libsasl2       2.1.19.dfsg1-0 Authentication abstraction library
+ii  libsasl2-modul 2.1.19.dfsg1-0 Pluggable Authentication Modules for SASL
+ii  libsensors3    2.9.1-1sarge3  library to read temperature/voltage/fan sens
+ii  libsigc++-1.2- 1.2.5-4        type-safe Signal Framework for C++ - runtime
+ii  libsm-dev      4.3.0.dfsg.1-1 X Window System Session Management library d
+ii  libsm6         4.3.0.dfsg.1-1 X Window System Session Management library
+ii  libsmbclient   3.0.14a-3sarge shared library that allows applications to t
+ii  libsndfile1    1.0.10-2       Library for reading/writing audio files
+ii  libss2         1.37-2sarge1   command-line interface parsing library
+ii  libssl0.9.7    0.9.7e-3sarge5 SSL shared libraries
+ii  libstdc++5     3.3.5-13       The GNU Standard C++ Library v3
+ii  libstdc++6     3.4.3-13sarge1 The GNU Standard C++ Library v3
+ii  libstdc++6-dev 3.4.3-13sarge1 The GNU Standard C++ Library v3 (development
+ii  libtasn1-2     0.2.10-3sarge1 Manage ASN.1 structures (runtime)
+ii  libtext-charwi 0.04-1         get display widths of characters on the term
+ii  libtext-iconv- 1.2-3          Convert between character sets in Perl
+ii  libtext-wrapi1 0.06-1         internationalized substitute of Text::Wrap
+ii  libtextwrap1   0.1-1          text-wrapping library with i18n - runtime
+ii  libtiff4       3.7.2-7        Tag Image File Format (TIFF) library
+ii  libttf2        1.4pre.2003040 FreeType 1, The FREE TrueType Font Engine, s
+ii  libusb-0.1-4   0.1.10a-9.sarg userspace USB programming library
+ii  libuuid1       1.37-2sarge1   universally unique id library
+ii  libvorbis0a    1.1.0-2        The Vorbis General Audio Compression Codec
+ii  libvorbisenc2  1.1.0-2        The Vorbis General Audio Compression Codec
+ii  libvorbisfile3 1.1.0-2        The Vorbis General Audio Compression Codec
+ii  libwrap0       7.6.dbs-8      Wietse Venema's TCP wrappers library
+ii  libx11-6       4.3.0.dfsg.1-1 X Window System protocol client library
+ii  libx11-dev     4.3.0.dfsg.1-1 X Window System protocol client library deve
+ii  libxaw7        4.3.0.dfsg.1-1 X Athena widget set library
+ii  libxcursor1    1.1.3-1        X cursor management library
+ii  libxext-dev    4.3.0.dfsg.1-1 X Window System miscellaneous extension libr
+ii  libxext6       4.3.0.dfsg.1-1 X Window System miscellaneous extension libr
+ii  libxft-dev     2.1.7-1        FreeType-based font drawing library for X (d
+ii  libxft1        4.3.0.dfsg.1-1 FreeType-based font drawing library for X (v
+ii  libxft2        2.1.7-1        FreeType-based font drawing library for X
+ii  libxi-dev      4.3.0.dfsg.1-1 X Window System Input extension library deve
+ii  libxi6         4.3.0.dfsg.1-1 X Window System Input extension library
+ii  libxml2        2.6.16-7sarge1 GNOME XML library
+ii  libxmu6        4.3.0.dfsg.1-1 X Window System miscellaneous utility librar
+ii  libxmuu1       4.3.0.dfsg.1-1 lightweight X Window System miscellaneous ut
+ii  libxp6         4.3.0.dfsg.1-1 X Window System printing extension library
+ii  libxpm4        4.3.0.dfsg.1-1 X pixmap library
+ii  libxrandr2     4.3.0.dfsg.1-1 X Window System Resize, Rotate and Reflectio
+ii  libxrender-dev 0.8.3-7        X Rendering Extension client library (develo
+ii  libxrender1    0.8.3-7        X Rendering Extension client library
+ii  libxslt1.1     1.1.12-8       XSLT processing library - runtime library
+ii  libxt-dev      4.3.0.dfsg.1-1 X Toolkit Intrinsics development files
+ii  libxt6         4.3.0.dfsg.1-1 X Toolkit Intrinsics
+ii  libxtrap6      4.3.0.dfsg.1-1 X Window System protocol-trapping extension 
+ii  libxtst6       4.3.0.dfsg.1-1 X Window System event recording and testing 
+ii  libxv-dev      4.3.0.dfsg.1-1 X Window System video extension library deve
+ii  libxv1         4.3.0.dfsg.1-1 X Window System video extension library
+ii  linux-kernel-h 2.5.999-test7- Linux Kernel Headers for development
+ii  locales        2.3.2.ds1-22sa GNU C Library: National Language (locale) da
+ii  login          4.0.3-31sarge9 system login tools
+ii  logrotate      3.7-5          Log rotation utility
+ii  mailx          8.1.2-0.200405 A simple mail user agent
+ii  make           3.80-9         The GNU version of the "make" utility.
+ii  makedev        2.3.1-77       creates device files in /dev
+ii  man-db         2.4.2-21sarge1 The on-line manual pager
+ii  manpages       1.70-1         Manual pages about using a GNU/Linux system
+ii  mawk           1.3.3-11       a pattern scanning and text processing langu
+ii  mdetect        0.5.2          mouse device autodetection tool
+ii  menu           2.1.24         provides update-menus functions for some app
+ii  menu-xdg       0.2            freedesktop.org menu compliant window manage
+ii  modutils       2.4.26-1.2     Linux module utilities
+ii  mount          2.12p-4sarge2  Tools for mounting and manipulating filesyst
+ii  nano           1.2.4-5        free Pico clone with some new features
+ii  ncurses-base   5.4-4          Descriptions of common terminal types
+ii  ncurses-bin    5.4-4          Terminal-related programs and man pages
+ii  net-tools      1.60-10        The NET-3 networking toolkit
+ii  netbase        4.21           Basic TCP/IP networking system
+ii  netkit-inetd   0.10-10        The Internet Superserver
+ii  netpbm         10.0-8sarge3   Graphics conversion tools
+ii  nvi            1.79-22        4.4BSD re-implementation of vi
+ii  passwd         4.0.3-31sarge9 change and administer password and group dat
+ii  patch          2.5.9-2        Apply a diff file to an original
+ii  pciutils       2.1.11-15      Linux PCI Utilities
+ii  perl           5.8.4-8sarge6  Larry Wall's Practical Extraction and Report
+ii  perl-base      5.8.4-8sarge6  The Pathologically Eclectic Rubbish Lister
+ii  perl-doc       5.8.4-8sarge6  Perl documentation
+ii  perl-modules   5.8.4-8sarge6  Core Perl modules
+ii  perl-suid      5.8.4-8sarge6  Runs setuid Perl scripts
+ii  pkg-config     0.17.2-1       manage compile and link flags for libraries
+ii  portmap        5-9            The RPC portmapper
+ii  poster         20020830-2     Create large posters out of PostScript pages
+ii  ppp            2.4.3-20050321 Point-to-Point Protocol (PPP) daemon
+ii  pppconfig      2.3.11         A text menu based utility for configuring pp
+ii  pppoe          3.5-4          PPP over Ethernet driver
+ii  pppoeconf      1.7            configures PPPoE/ADSL connections
+ii  procps         3.2.1-2        The /proc file system utilities
+ii  psfontmgr      0.11.8-0.1     PostScript font manager -- part of Defoma, D
+ii  psmisc         21.5-1         Utilities that use the proc filesystem
+ii  psutils        1.17-17        A collection of PostScript document handling
+ii  python         2.3.5-2        An interactive high-level object-oriented la
+ii  python2.3      2.3.5-3sarge2  An interactive high-level object-oriented la
+ii  python2.3-icon 1.1.2-1        Python universal Unicode codec, using iconv(
+ii  read-edid      1.4.1-2        hardware information-gathering tool for VESA
+ii  render-dev     0.8-4          X Rendering Extension header files and docum
+ii  sed            4.1.2-8        The GNU sed stream editor
+ii  sgml-base      1.26           SGML infrastructure and SGML catalog file su
+ii  slang1a-utf8   1.4.9dbs-8     The S-Lang programming library with utf8 sup
+ii  ssh            3.8.1p1-8.sarg Secure rlogin/rsh/rcp replacement (OpenSSH)
+ii  sysklogd       1.4.1-17       System Logging Daemon
+ii  sysv-rc        2.86.ds1-1     Standard boot mechanism using symlinks in /e
+ii  sysvinit       2.86.ds1-1     System-V like init
+ii  tar            1.14-2.4       GNU tar
+ii  tasksel        2.24           Tool for selecting tasks for installation on
+ii  tcpd           7.6.dbs-8      Wietse Venema's TCP wrapper utilities
+ii  telnet         0.17-29        The telnet client
+ii  ttf-bitstream- 1.10-3         The Bitstream Vera family of free TrueType f
+ii  ucf            1.17           Update Configuration File: preserves user ch
+ii  unzip          5.52-1sarge5   De-archiver for .zip files
+ii  usbutils       0.70-8         USB console utilities
+ii  util-linux     2.12p-4sarge2  Miscellaneous system utilities
+ii  wget           1.9.1-12       retrieves files from the web
+ii  whiptail       0.51.6-20      Displays user-friendly dialog boxes from she
+ii  x-dev          4.3.0.dfsg.1-1 X protocol development files
+ii  x-ttcidfont-co 17             Configure TrueType and CID fonts for X
+ii  x-window-syste 4.3.0.dfsg.1-1 X Window System core components
+ii  xbase-clients  4.3.0.dfsg.1-1 miscellaneous X clients
+ii  xfonts-100dpi  4.3.0.dfsg.1-1 100 dpi fonts for X
+ii  xfonts-75dpi   4.3.0.dfsg.1-1 75 dpi fonts for X
+ii  xfonts-base    4.3.0.dfsg.1-1 standard fonts for X
+ii  xfonts-konsole 3.3.2-1sarge3  Fonts used by the KDE Konsole
+ii  xfonts-scalabl 4.3.0.dfsg.1-1 scalable fonts for X
+ii  xfree86-common 4.3.0.dfsg.1-1 X Window System (XFree86) infrastructure
+ii  xlibmesa-dri   4.3.0.dfsg.1-1 Mesa 3D graphics library modules [XFree86]
+ii  xlibmesa-gl    4.3.0.dfsg.1-1 Mesa 3D graphics library [XFree86]
+ii  xlibmesa-glu   4.3.0.dfsg.1-1 Mesa OpenGL utility library [XFree86]
+ii  xlibs          4.3.0.dfsg.1-1 X Keyboard Extension (XKB) configuration dat
+ii  xlibs-data     4.3.0.dfsg.1-1 X Window System client data
+ii  xlibs-static-d 4.3.0.dfsg.1-1 X Window System client library development f
+ii  xml-core       0.09           XML infrastructure and XML catalog file supp
+ii  xserver-common 4.3.0.dfsg.1-1 files and utilities common to all X servers
+ii  xserver-xfree8 4.3.0.dfsg.1-1 the XFree86 X server
+ii  xutils         4.3.0.dfsg.1-1 X Window System utility programs
+ii  zip            2.31-1         Archiver for .zip files
+ii  zlib1g         1.2.2-4.sarge. compression library - runtime
+ii  zlib1g-dev     1.2.2-4.sarge. compression library - development

@@ -1,0 +1,4 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+  locale/en-US/communicator/layout/MediaDocument.properties (/toolkit/locales/en-US/chrome/global/layout/MediaDocument.properties)
+#endif

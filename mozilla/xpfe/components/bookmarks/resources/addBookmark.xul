@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+
+<!-- -*- Mode: HTML; indent-tabs-mode: nil; -*- -->
+<!--
+
+  The contents of this file are subject to the Netscape Public
+  License Version 1.1 (the "License"); you may not use this file
+  except in compliance with the License. You may obtain a copy of
+  the License at http://www.mozilla.org/NPL/
+ 
+  Software distributed under the License is distributed on an "AS
+  IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  implied. See the License for the specific language governing
+  rights and limitations under the License.
+ 
+  The Original Code is mozilla.org code.
+ 
+  The Initial Developer of the Original Code is Netscape
+  Communications Corporation.  Portions created by Netscape are
+  Copyright (C) 1998 Netscape Communications Corporation. All
+  Rights Reserved.
+ 
+  Contributor(s): 
+    Ben Goodger <ben@netscape.com> (Original Author)
+    Gervase Markham <gerv@gerv.net>
+-->
+
+<?xml-stylesheet href="chrome://communicator/skin/"?>
+<?xml-stylesheet href="chrome://communicator/skin/bookmarks/bookmarks.css"?>
+<?xml-stylesheet href="chrome://communicator/content/bookmarks/bookmarks.css" type="text/css"?>
+
+<!DOCTYPE dialog [
+<!ENTITY % brandDTD SYSTEM "chrome://global/locale/brand.dtd" >
+%brandDTD;
+<!ENTITY % addBookmarkDTD SYSTEM "chrome://communicator/locale/bookmarks/addBookmark.dtd">
+%addBookmarkDTD;
+]>
+
+<dialog id="newBookmarkDialog"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        ondialogaccept="return onOK(event)"
+        title="&newBookmark.title;" selectFolderTitle="&selectFolder.title;"
+        onload="Startup();"
+        onunload="persistTreeSize();"
+        persist="screenX screenY"
+        screenX="24" screenY="24">
+   
+  
+  <script type="application/x-javascript" src="chrome://communicator/content/bookmarks/bookmarks.js"/>
+  <script type="application/x-javascript" src="chrome://communicator/content/bookmarks/addBookmark.js"/>
+
+  <stringbundle id="bookmarksbundle"
+                src="chrome://communicator/locale/bookmarks/bookmarks.properties"/>
+
+  <broadcaster id="showaddgroup"/>
+
+  <separator id="nameseparator" class="thin"/>
+  
+  <grid id="bookmarknamegrid">
+    <columns>
+      <column/>
+      <column flex="1"/>
+    </columns>
+    <rows>
+      <row align="center">
+        <hbox pack="end">
+          <label value="&name.label;" accesskey="&name.accesskey;" control="name"/>
+        </hbox>
+        <textbox id="name" oninput="onFieldInput();"/>
+      </row>
+      <row align="center">
+        <hbox pack="end">
+          <label value="&url.label;" accesskey="&url.accesskey;" control="url"/>
+        </hbox>
+        <textbox id="url" oninput="onFieldInput();"/>
+      </row>
+      <row align="center">
+        <hbox pack="end">
+          <label value="&shortcutURL.label;" accesskey="&shortcutURL.accesskey;" control="shortcutUrl"/>
+        </hbox>
+        <textbox id="shortcutUrl"/>
+      </row>
+    </rows>
+  </grid>
+
+  <separator class="thin" observes="showaddgroup"/>
+  <hbox observes="showaddgroup">
+    <checkbox id="addgroup" label="&addGroup.label;"
+              accesskey="&addGroup.accesskey;"
+              oncommand="toggleGroup();"/>
+  </hbox>
+
+  <separator id="destinationSeparator"/>
+
+  <vbox id="folderbox" flex="1">
+    <label id="destinationLabel" value="&destination.label;"/>
+    <bookmarks-tree id="bookmarks-view" flex="1" type="folders"
+                    rows="10" seltype="single"
+                    persist="width height"/>
+
+    <separator id="folderbuttonseparator" class="thin"/>
+
+    <hbox pack="end">
+      <button label="&newFolder.label;"
+              accesskey="&newFolder.accesskey;"
+              oncommand="createNewFolder();"/>
+    </hbox>
+  </vbox>
+
+  <!-- Ensure a decent dialog width when the bookmarks-tree is hidden. -->
+  <spacer style="width: 36em;"/>
+
+</dialog>

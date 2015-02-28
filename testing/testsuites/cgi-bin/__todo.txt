@@ -1,0 +1,20 @@
+- test fuer folgende opcodes generiern:
+JSOP_EXPORTALL:
+JSOP_EXPORTNAME:
+JSOP_IMPORTALL:
+JSOP_IMPORTELEM:
+JSOP_IMPORTPROP:
+- alle x-jump-tests generieren
+- jsop_namedfunobj: wie test 3?
+- jsop_nop: wie testen? soll ich das ueberhaupt testen?
+- jsop_null, jsop_zero, jsop_one: ist test 3 richtig? notevil3 = null; dut3 = notevil3
+- jsop_number, jsop_string: test 3?!
+- jsop_object: test3?
+- wie jsop_pop, jsop_pop2, jsop_popv testen? kann eval helfen?
+- jsop_push: eval reicht?
+- jsop_pushobj: testfall ohne print?
+- jsop_setcall: kann ich das im mozilla testen?!
+- jsop_setsp: kann das so getestet werden?
+- jsop_swap: wie kann das getestet werden? soll das getestet werden?
+- jsop_uint16: test 3 geht so?
+- jsop_void: geht test 3?

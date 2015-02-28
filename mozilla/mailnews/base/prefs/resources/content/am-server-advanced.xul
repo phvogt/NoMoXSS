@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+
+<!--
+ The contents of this file are subject to the Netscape Public
+ License Version 1.1 (the "License"); you may not use this file
+ except in compliance with the License. You may obtain a copy of
+ the License at http://www.mozilla.org/NPL/
+
+ Software distributed under the License is distributed on an "AS
+ IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ implied. See the License for the specific language governing
+ rights and limitations under the License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is Netscape
+ Communications Corporation. Portions created by Netscape are
+ Copyright (C) 1998-1999 Netscape Communications Corporation. All
+ Rights Reserved.
+
+-->
+
+<?xml-stylesheet href="chrome://messenger/skin/accountManage.css" type="text/css"?>
+
+<?xul-overlay href="chrome://messenger/content/msgFolderPickerOverlay.xul"?>
+
+<!DOCTYPE dialog SYSTEM "chrome://messenger/locale/am-server-advanced.dtd">
+
+<dialog
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        title="&serverAdvanced.label;"
+        buttons="accept,cancel"
+        onload="onLoad();"
+        ondialogaccept="return onOk();">
+
+  <script type="application/x-javascript" src="am-server-advanced.js"/>
+  <stringbundle id="bundle_prefs" src="chrome://messenger/locale/prefs.properties"/>
+
+  <tabbox id="tabbox" flex="1">
+    <tabs id="tabs">
+      <tab id="smtpTab" label="SMTP"/>
+      <tab id="imapTab" label="IMAP"/>
+      <tab id="pop3Tab" label="POP"/>
+    </tabs>
+    <tabpanels id="tabpanels" flex="1">
+
+    <!-- SMTP Tab -->
+    <vbox>    
+      <description style="width: 20em; ">&smtpDesc.label;</description>
+      <separator class="thin"/>
+      <hbox align="center">
+        <label value="&smtpName.label;" control="smtpServerList"
+               accesskey="&smtpName.accesskey;"/>
+        <menulist datasources="rdf:smtp"
+                  containment="http://home.netscape.com/NC-rdf#child"
+                  ref="NC:smtpservers" amsa_persist="true"
+                  id="smtpServerList">
+          <template>
+            <rule>
+              <menupopup>
+                <menuitem uri="..." value="rdf:http://home.netscape.com/NC-rdf#Key"
+                          label="rdf:http://home.netscape.com/NC-rdf#Name"/>
+              </menupopup>
+            </rule>
+            <menupopup/>
+          </template>
+          <menupopup id="smtpPopup">
+            <menuitem value="" label="&smtpDefaultServer.label;" id="useDefaultItem"/>
+            <menuseparator/>
+            <!-- template will be inserted here -->
+          </menupopup>
+        </menulist>
+      </hbox>
+    </vbox>
+
+    <!-- IMAP Tab -->
+    <vbox id="imapTabPanel">
+      <hbox>
+        <label value="&serverDirectory.label;"
+               accesskey="&serverDirectory.accesskey;"
+               control="serverDirectory"/>
+        <textbox amsa_persist="true" id="serverDirectory"/>
+      </hbox>
+
+      <checkbox amsa_persist="true" id="usingSubscription"
+                label="&usingSubscription.label;"
+                accesskey="&usingSubscription.accesskey;"/>
+
+      <checkbox amsa_persist="true" id="dualUseFolders"
+                label="&dualUseFolders.label;"
+                accesskey="&dualUseFolders.accesskey;"/>
+
+      <checkbox amsa_persist="true" id="useIdle"
+                label="&useIdle.label;"
+                accesskey="&useIdle.accesskey;"/>
+
+      <separator class="groove"/>
+      <row>
+        <hbox align="center">
+          <label control="maximumConnectionsNumber"
+                 value="&maximumConnectionsNumber.label;"
+                 accesskey="&maximumConnectionsNumber.accesskey;"/>
+          <textbox amsa_persist="true" size="3" id="maximumConnectionsNumber"/>
+        </hbox>
+      </row>
+
+      <separator class="groove"/>
+      <description>&namespaceDesc.label;</description>
+      <grid>
+        <columns>
+          <column/>
+          <column/>
+          <column/>
+        </columns>
+        <rows>
+          <row>
+            <separator class="indent"/>
+            <label control="personalNamespace" value="&personalNamespace.label;"
+                   accesskey="&personalNamespace.accesskey;"/>
+            <textbox amsa_persist="true" id="personalNamespace" />
+          </row>
+          <row>
+            <separator class="indent"/>
+            <label control="publicNamespace" value="&publicNamespace.label;"
+                   accesskey="&publicNamespace.accesskey;"/>
+            <textbox amsa_persist="true" id="publicNamespace"/>
+          </row>
+          <row>
+            <separator class="indent"/>
+            <label control="otherUsersNamespace" value="&otherUsersNamespace.label;"
+                   accesskey="&otherUsersNamespace.accesskey;"/>
+            <textbox amsa_persist="true" id="otherUsersNamespace"/>
+          </row>
+        </rows>
+      </grid>
+      <grid>
+        <columns>
+          <column/>
+          <column/>
+        </columns>
+        <rows>
+          <row>
+            <separator class="indent"/>
+            <checkbox amsa_persist="true" id="overrideNamespaces"
+                      label="&overrideNamespaces.label;"
+                      accesskey="&overrideNamespaces.accesskey;"/>
+          </row>
+        </rows>
+      </grid>
+    </vbox>
+    <!-- POP3 Tab -->
+    <vbox id="pop3TabPanel">
+      <description style="width: 20em; ">&pop3Desc.label;</description>
+      <separator class="thin"/>
+      <hbox align="center">
+      <radiogroup id="folderStorage"
+                  orient="horizontal" amsa_persist="true">
+      <rows>
+         <row align = "center">
+          <radio value="0" id = "globalInbox" label="&globalInbox.label;"
+                 oncommand="updateInboxAccount(false, true)" 
+                 accesskey="&globalInbox.accesskey;"/>
+         </row>
+         <row>
+            <radio value="1" id = "accountDirectory" label="&accountDirectory.label;"
+                 accesskey="&accountDirectory.accesskey;"
+                 oncommand="updateInboxAccount(false, false)" />
+         </row>
+         <row>
+            <radio value="2" id = "deferToServer" label="&deferToServer.label;"
+                 accesskey="&deferToServer.accesskey;"
+                 oncommand="updateInboxAccount(true, true)" 
+                 />
+  	        <menulist id="deferedServerFolderPicker" />
+         </row>
+        </rows>
+        </radiogroup>
+      </hbox>
+      <checkbox amsa_persist="true" id="deferGetNewMail"
+              label="&deferGetNewMail.label;"
+              accesskey="&deferGetNewMail.accesskey;"/>
+    </vbox>
+    </tabpanels>
+  </tabbox>
+</dialog>

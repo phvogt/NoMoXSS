@@ -1,0 +1,46 @@
+#
+# The contents of this file are subject to the Netscape Public
+# License Version 1.1 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of
+# the License at http://www.mozilla.org/NPL/
+#
+# Software distributed under the License is distributed on an "AS
+# IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# rights and limitations under the License.
+#
+# The Original Code is Mozilla Communicator client code, 
+# released March 31, 1998. 
+#
+# The Initial Developer of the Original Code is Netscape Communications 
+# Corporation.  Portions created by Netscape are
+# Copyright (C) 1998 Netscape Communications Corporation. All
+# Rights Reserved.
+#
+# Contributor(s): 
+#      leaf nunes <leaf@mozilla.org>
+
+DEPTH		= ../../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+MODULE		= xpinstall
+
+B_NAME = mozilla-$(TARGET_CPU)-$(TARGET_VENDOR)-$(TARGET_OS)
+STUB_NAME = $(B_NAME)-installer
+SEA_NAME  = $(B_NAME)-full-installer
+
+ifndef INSTALLER_URL
+INSTALLER_URL = "http://ftp.mozilla.org/pub/mozilla.org/pub/mozilla/nightly/latest-trunk/linux-xpi"
+endif
+
+installer:
+	$(PERL) $(srcdir)/deliver.pl \
+                -o $(DEPTH) -s $(topsrcdir) \
+                $(MOZILLA_VERSION) $(INSTALLER_URL) $(STUB_NAME) $(SEA_NAME)
+
+include $(topsrcdir)/config/rules.mk
+

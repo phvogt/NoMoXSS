@@ -1,0 +1,1 @@
+make -f client.mk distclean >..\clean.log 2>&1

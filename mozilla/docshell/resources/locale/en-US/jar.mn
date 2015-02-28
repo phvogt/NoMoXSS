@@ -1,0 +1,5 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+  locale/en-US/global/netError.dtd          (/toolkit/locales/en-US/chrome/global/netError.dtd)
+  locale/en-US/global/appstrings.properties (/toolkit/locales/en-US/chrome/global/appstrings.properties)
+#endif

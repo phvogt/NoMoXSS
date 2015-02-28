@@ -1,0 +1,6 @@
+#ifndef MOZ_XUL_APP
+en-US.jar:
+	locale/en-US/global/printing.properties      (/toolkit/locales/en-US/chrome/global/printing.properties)
+	locale/en-US/global/layout_errors.properties (/toolkit/locales/en-US/chrome/global/layout_errors.properties)
+#endif
+

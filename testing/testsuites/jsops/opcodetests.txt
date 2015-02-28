@@ -1,0 +1,152 @@
+Opcode	Normal	If	evil	Anm.
+JSOP_ADD	0	X	X	
+JSOP_AND	0	X	X	
+JSOP_ANDX	0	X	X	
+JSOP_ANONFUNOBJ	0	X	0	Getaintete Funktion nicht möglich
+JSOP_ARGCNT	0	X	X	
+JSOP_ARGDEC	0	X	X	
+JSOP_ARGINC	0	X	X	
+JSOP_ARGSUB	0	X	X	
+JSOP_ARGUMENTS	0	X	X	
+JSOP_BINDNAME	0	X	X	
+JSOP_BITAND	0	X	X	
+JSOP_BITNOT	0	X	X	
+JSOP_BITOR	0	X	X	
+JSOP_BITXOR	0	X	X	
+JSOP_CALL	0	X	X	
+JSOP_CASE	0	X	X	
+JSOP_CASEX	0	X	X	
+JSOP_CLOSURE	0	X	X	
+JSOP_CONDSWITCH	0	X	X	
+JSOP_DEBUGGER	0	X	X	Testet nicht direkt den Opcode
+JSOP_DECARG	0	X	X	
+JSOP_DECELEM	0	X	X	
+JSOP_DECNAME	0	X	X	
+JSOP_DECPROP	0	X	X	
+JSOP_DECVAR	0	X	X	
+JSOP_DEFAULT	0	X	X	Testet nicht direkt den Opcode
+JSOP_DEFAULTX	0	X	X	Testet nicht direkt den Opcode
+JSOP_DEFCONST	0	X	X	Testet nicht direkt den Opcode
+JSOP_DEFFUN	0	-	-	Testet nicht direkt den Opcode (bei if und isevil)
+JSOP_DEFLOCALFUN	0	-	-	So nicht testbar
+JSOP_DEFSHARP	-	-	-	Opcode wird vom Browser nicht unterstützt
+JSOP_DEFVAR	0	X	X	Testet nicht direkt den Opcode
+JSOP_DELELEM	0	X	X	
+JSOP_DELNAME	0	X	X	
+JSOP_DELPROP	0	X	X	
+JSOP_DIV	0	X	X	
+JSOP_DUP	0	X	X	Testet nicht direkt den Opcode
+JSOP_DUP2	0	X	X	
+JSOP_ELEMDEC	0	X	X	
+JSOP_ELEMINC	0	X	X	
+JSOP_ENDINIT	0	X	X	Testet nicht direkt den Opcode (bei isevil)
+JSOP_ENTERWITH	0	X	X	
+JSOP_ENUMELEM	0	X	X	Testet nicht direkt den Opcode (bei isevil)
+JSOP_EQ	0	X	X	
+JSOP_EVAL	0	X	X	
+JSOP_EXCEPTION	0	X	X	
+JSOP_EXPORTALL	X	X	X	Testet nicht direkt den Opcode
+JSOP_EXPORTNAME	X	X	X	Testet nicht direkt den Opcode
+JSOP_FALSE	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_FINALLY	0	X	X	Testet nicht direkt den Opcode
+JSOP_FORARG	0	X	X	Testet nicht direkt den Opcode
+JSOP_FORELEM	0	X	X	Testet nicht direkt den Opcode
+JSOP_FORNAME	0	X	X	Testet nicht direkt den Opcode
+JSOP_FORPROP	0	X	X	Testet nicht direkt den Opcode
+JSOP_FORVAR	0	X	X	Testet nicht direkt den Opcode
+JSOP_GE	0	X	X	
+JSOP_GETARG	0	X	X	
+JSOP_GETELEM	0	X	X	
+JSOP_GETPROP	0	X	X	
+JSOP_GETTER	0	X	X	Testet nicht direkt den Opcode (bei isevil)
+JSOP_GETVAR	0	X	X	
+JSOP_GOSUB	0	X	X	Testet nicht direkt den Opcode (nur Sprung)
+JSOP_GOSUBX	0	X	X	Testet nicht direkt den Opcode (nur Sprung)
+JSOP_GOTO	0	X	X	Testet nicht direkt den Opcode (nur Sprung)
+JSOP_GOTOX	0	X	X	Testet nicht direkt den Opcode (nur Sprung)
+JSOP_GROUP	0	X	X	Testet nicht direkt den Opcode (NOP)
+JSOP_GT	0	X	X	
+JSOP_IFEQ	0	X	X	
+JSOP_IFEQX	0	X	X	
+JSOP_IFNE	0	X	X	
+JSOP_IFNEX	0	X	X	
+JSOP_IMPORTALL	X	X	X	Testet nicht direkt den Opcode
+JSOP_IMPORTELEM	X	X	X	Testet nicht direkt den Opcode
+JSOP_IMPORTPROP	X	X	X	Testet nicht direkt den Opcode
+JSOP_IN	0	X	X	
+JSOP_INCARG	0	X	X	
+JSOP_INCELEM	0	X	X	
+JSOP_INCNAME	0	X	X	
+JSOP_INCPROP	0	X	X	
+JSOP_INCVAR	0	X	X	
+JSOP_INITCATCHVAR	0	X	X	
+JSOP_INITELEM	0	X	X	
+JSOP_INITPROP	0	X	X	
+JSOP_INSTANCEOF	0	X	X	
+JSOP_LE	0	X	X	
+JSOP_LEAVEWITH	-	-	-	So nicht testbar
+JSOP_LOOKUPSWITCH	0	X	X	
+JSOP_LOOKUPSWITCHX	0	X	X	
+JSOP_LSH	0	X	X	
+JSOP_LT	0	X	X	
+JSOP_MOD	0	X	X	
+JSOP_MUL	0	X	X	
+JSOP_NAME	0	X	X	Tested nicht direkt den Opcode
+JSOP_NAMEDEC	0	X	X	
+JSOP_NAMEDFUNOBJ	0	X	0	Getaintete Funktion nicht möglich
+JSOP_NAMEINC	0	X	X	
+JSOP_NE	0	X	X	
+JSOP_NEG	0	X	X	
+JSOP_NEW	0	X	X	
+JSOP_NEW_EQ	0	X	X	
+JSOP_NEW_NE	0	X	X	
+JSOP_NEWINIT	0	X	X	Tested nicht direkt den Opcode
+JSOP_NOP	-	-	-	So nicht testbar
+JSOP_NOT	0	X	X	
+JSOP_NULL	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_NUMBER	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_OBJECT	0	X	0	Literale können nicht direkt getainted werden
+JSOP_ONE	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_OR	0	X	X	
+JSOP_ORX	0	X	X	
+JSOP_POP	0	X	X	So nicht testbar
+JSOP_POP2	0	0	0	So nicht testbar
+JSOP_POPV	0	X	X	
+JSOP_POS	0	X	X	
+JSOP_PROPDEC	0	X	X	
+JSOP_PROPINC	0	X	X	
+JSOP_PUSH	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_PUSHOBJ	0	X	X	Testet nicht direkt den Opcode
+JSOP_RETRVAL	0	X	X	
+JSOP_RETSUB	0	X	X	Testet nicht direkt den Opcode
+JSOP_RETURN	0	X	X	
+JSOP_RSH	0	X	X	
+JSOP_SETARG	0	X	X	
+JSOP_SETCALL	-	-	-	Opcode wird vom Browser nicht unterstützt
+JSOP_SETCONST	0	X	X	
+JSOP_SETELEM	0	X	X	
+JSOP_SETNAME	0	X	X	
+JSOP_SETPROP	0	X	X	
+JSOP_SETRVAL	0	X	X	
+JSOP_SETSP	0	X	0	Testet nicht direkt den Opcode
+JSOP_SETTER	0	X	X	Testet nicht direkt den Opcode (bei isevil)
+JSOP_SETVAR	0	X	X	
+JSOP_STRING	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_SUB	0	X	X	
+JSOP_SWAP	-	-	-	Opcode wird vom Browser nicht unterstützt
+JSOP_TABLESWITCH	0	X	X	
+JSOP_TABLESWITCHX	0	X	X	
+JSOP_THIS	0	X	X	
+JSOP_THROW	0	X	X	
+JSOP_TOOBJECT	0	X	X	
+JSOP_TRAP	-	-	-	Opcode wird vom Browser nicht unterstützt
+JSOP_TRUE	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_TRY	0	X	X	Testet nicht direkt den Opcode
+JSOP_TYPEOF	0	X	X	
+JSOP_UINT16	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_URSH	0	X	X	
+JSOP_USESHARP	-	-	-	Opcode wird vom Browser nicht unterstützt
+JSOP_VARDEC	0	X	X	
+JSOP_VARINC	0	X	X	
+JSOP_VOID	0	X	0	Konstanten können nicht direkt getainted werden
+JSOP_ZERO	0	X	0	Konstanten können nicht direkt getainted werden
