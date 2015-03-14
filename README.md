@@ -1,6 +1,14 @@
 # NoMoXSS
 No More XSS attacks - master thesis example of tracking sensitive data by using JavaScript data tainting for Firefox 0.10
 
+## Disclaimer
+
+This project is based on Firefox 0.10! It was my master thesis and is only a proof of concept. Using this browser does not provide more security because the used browser Firefox 0.10 is outdated. Please consider using a current version of [Firefox](https://www.mozilla.org/en-US/firefox/new/) for daily usage.
+
+If you are interested about cross site scripting (XSS) and the technique of data tainting for tracking sensitive data while processing JavaScript, read on!
+
+## Overview
+
 Cross site scripting (XSS) is a common security problem of web applications where an attacker can inject scripting code into the output of the application that is then sent to a user's web browser. In the browser, this scripting code is executed and used to transfer sensitive data to a third party. Todays solutions attempt to prevent XSS on the server side, for example, by inspecting and modifying the data sent to and from the web application. The presented solution, on the other hand, stops XSS attacks on the client side by tracking the use of sensitive information in the JavaScript engine of the web browser. If sensitive information is about to be transferred to a third party, the user can decide if this should be allowed or not. As a result, the user has an additional protection layer when surfing websites without solely depending on the security of the web application.
 
 ## Documentation / Publications
