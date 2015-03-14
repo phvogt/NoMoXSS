@@ -16,7 +16,7 @@ Cross site scripting (XSS) is a common security problem of web applications wher
 "NoMoXSS" is the software prototype of the [master thesis "Cross Site Scripting (XSS) Attack Prevention with Dynamic Data Tainting on the Client Side"](doc/master_thesis_xss_prevention.pdf)
 
 I wrote a [paper](doc/paper_xss_prevention.pdf) as well, that gives an overview of the approach.
-A project website is available at the Secure Systems Lab.
+A [project website](http://seclab.tuwien.ac.at/projects/jstaint/) is available at the [International Secure Systems Lab](http://seclab.tuwien.ac.at/) (part of the [TU Vienna](http://www.tuwien.ac.at/)), which contains other interesting projects as well.
 
 ###Prerequisites
 
